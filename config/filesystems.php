@@ -38,6 +38,16 @@ return [
             'report' => false,
         ],
 
+        // Scratch space for the Bitwarden CLI.
+        // Must stay a local disk, as the CLI runs as a separate process and needs real paths on this machine.
+        'bitwarden-cli' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/bitwarden-cli'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

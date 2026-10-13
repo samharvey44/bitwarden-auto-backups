@@ -8,6 +8,7 @@ use App\Events\BackupSucceeded;
 use App\Models\Backup;
 use App\Models\Vault;
 use App\Services\BitwardenCli;
+use App\Services\VaultExport;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\File as HttpFile;
@@ -62,31 +63,35 @@ class BackupVault implements ShouldQueue
             'started_at' => now(),
         ]);
 
-        File::ensureDirectoryExists(config('backups.working_directory'), 0700);
+        $workingDisk = Storage::disk(config('backups.working_disk'));
+        $temporaryFiles = [];
+        $exports = [];
 
-        $exports = collect($formats)
-            ->mapWithKeys(fn (BackupFormat $format): array => [
-                $format->value => config('backups.working_directory').'/'.Str::uuid().'.json',
-            ])
-            ->all();
-        $temporaryFiles = array_values($exports);
+        foreach ($formats as $format) {
+            $temporaryFiles[] = $filename = Str::uuid().'.json';
+            $exports[] = new VaultExport($format, $workingDisk->path($filename));
+        }
+
         $storedFiles = [];
 
         try {
-            $bitwarden->exportVault($vault, $exports);
+            $bitwarden->exportVault($vault, ...$exports);
 
-            foreach ($formats as $format) {
-                $localPath = $exports[$format->value];
-                $password = $vault->exportPassword($format);
+            foreach ($exports as $export) {
+                $localPath = $export->path;
+                $password = $vault->exportPassword($export->format);
 
-                if ($format === BackupFormat::Json && filled($password)) {
-                    $localPath = $temporaryFiles[] = $this->zip($localPath, $password);
+                if ($export->format === BackupFormat::Json && filled($password)) {
+                    $temporaryFiles[] = $zipFilename = Str::replaceLast('.json', '.zip', basename($export->path));
+                    $localPath = $workingDisk->path($zipFilename);
+
+                    $this->zip($export->path, $localPath, $password);
                 }
 
                 $storedFiles[] = [
-                    'format' => $format,
+                    'format' => $export->format,
                     'disk' => config('backups.disk'),
-                    'path' => $this->store($vault, $format, $localPath),
+                    'path' => $this->store($vault, $export->format, $localPath),
                     'size_bytes' => File::size($localPath),
                     'password' => $password,
                 ];
@@ -110,7 +115,7 @@ class BackupVault implements ShouldQueue
 
             throw $exception;
         } finally {
-            File::delete($temporaryFiles);
+            $workingDisk->delete($temporaryFiles);
         }
 
         BackupSucceeded::dispatch($this->backup);
@@ -137,11 +142,10 @@ class BackupVault implements ShouldQueue
     }
 
     /**
-     * Put the unencrypted export inside an AES-256 encrypted ZIP and return the ZIP's path.
+     * Put the unencrypted export inside an AES-256 encrypted ZIP at the given path.
      */
-    private function zip(string $jsonPath, string $password): string
+    private function zip(string $jsonPath, string $zipPath, string $password): void
     {
-        $zipPath = Str::replaceLast('.json', '.zip', $jsonPath);
         $zip = new ZipArchive;
 
         throw_unless($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::EXCL) === true, RuntimeException::class, 'Unable to create the ZIP archive.');
@@ -150,8 +154,6 @@ class BackupVault implements ShouldQueue
         $zip->setEncryptionName('vault.json', ZipArchive::EM_AES_256, $password);
 
         throw_unless($zip->close(), RuntimeException::class, 'Unable to write the ZIP archive.');
-
-        return $zipPath;
     }
 
     /**

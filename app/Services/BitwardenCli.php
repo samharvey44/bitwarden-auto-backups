@@ -6,23 +6,25 @@ use App\Enums\BackupFormat;
 use App\Exceptions\BitwardenCliException;
 use App\Models\Vault;
 use Illuminate\Contracts\Process\ProcessResult;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class BitwardenCli
 {
     /**
-     * Export the vault once per requested format, logging in only once.
-     *
-     * @param  array<value-of<BackupFormat>, string>  $destinations  The file to write each export to, keyed by format.
+     * Run each requested export of the vault, logging in only once.
      *
      * @throws BitwardenCliException
      */
-    public function exportVault(Vault $vault, array $destinations): void
+    public function exportVault(Vault $vault, VaultExport ...$exports): void
     {
-        $dataDirectory = $this->makeDataDirectory();
-        $environment = ['BITWARDENCLI_APPDATA_DIR' => $dataDirectory];
+        $workingDisk = Storage::disk(config('backups.working_disk'));
+        $dataDirectory = (string) Str::uuid();
+
+        $workingDisk->makeDirectory($dataDirectory);
+
+        $environment = ['BITWARDENCLI_APPDATA_DIR' => $workingDisk->path($dataDirectory)];
 
         try {
             if ($vault->server_url !== null) {
@@ -44,13 +46,13 @@ class BitwardenCli
 
             $this->run(['sync'], $sessionEnvironment);
 
-            foreach ($destinations as $format => $destination) {
-                $this->run($this->exportArguments($vault, BackupFormat::from($format), $destination), $sessionEnvironment);
+            foreach ($exports as $export) {
+                $this->run($this->exportArguments($vault, $export), $sessionEnvironment);
             }
         } finally {
             $this->logOut($environment);
 
-            File::deleteDirectory($dataDirectory);
+            $workingDisk->deleteDirectory($dataDirectory);
         }
     }
 
@@ -59,10 +61,10 @@ class BitwardenCli
      *
      * @return list<string>
      */
-    private function exportArguments(Vault $vault, BackupFormat $format, string $destination): array
+    private function exportArguments(Vault $vault, VaultExport $export): array
     {
-        return match ($format) {
-            BackupFormat::Json => ['export', '--format', 'json', '--output', $destination],
+        return match ($export->format) {
+            BackupFormat::Json => ['export', '--format', 'json', '--output', $export->path],
 
             // The CLI only accepts the export password as an argument (or an
             // interactive prompt), so unlike the credentials, it is briefly
@@ -71,7 +73,7 @@ class BitwardenCli
                 'export',
                 '--format', 'encrypted_json',
                 '--password', $vault->encrypted_json_export_password,
-                '--output', $destination,
+                '--output', $export->path,
             ],
         };
     }
@@ -105,17 +107,5 @@ class BitwardenCli
         rescue(fn () => Process::timeout(config('backups.cli.timeout'))
             ->env($environment)
             ->run([config('backups.cli.path'), '--nointeraction', 'logout']), report: false);
-    }
-
-    /**
-     * Create a private, empty data directory for a single CLI session.
-     */
-    private function makeDataDirectory(): string
-    {
-        $path = config('backups.working_directory').'/'.Str::uuid();
-
-        File::makeDirectory($path, 0700, true);
-
-        return $path;
     }
 }

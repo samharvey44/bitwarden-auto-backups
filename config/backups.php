@@ -15,16 +15,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Working Directory
+    | Working Disk
     |--------------------------------------------------------------------------
     |
-    | Scratch space for the Bitwarden CLI's per-run data directories and for
-    | exports before they are moved to the backup disk. Nothing is kept here
-    | once a backup finishes.
+    | The local disk used as scratch space for the Bitwarden CLI's per-run data
+    | directories and for exports before they are moved to the backup disk.
+    | Nothing is kept here once a backup finishes.
     |
     */
 
-    'working_directory' => env('BACKUP_WORKING_DIRECTORY', storage_path('app/private/bitwarden-cli')),
+    'working_disk' => 'bitwarden-cli',
 
     /*
     |--------------------------------------------------------------------------

@@ -10,9 +10,9 @@ use App\Jobs\BackupVault;
 use App\Models\Backup;
 use App\Models\Vault;
 use App\Services\BitwardenCli;
+use App\Services\VaultExport;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Mockery\MockInterface;
 use Tests\TestCase;
@@ -22,31 +22,18 @@ class BackupVaultTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    private string $workingDirectory;
-
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->workingDirectory = storage_path('framework/testing/bitwarden-cli');
-
-        config([
-            'backups.disk' => 'backups',
-            'backups.working_directory' => $this->workingDirectory,
-        ]);
-    }
-
-    protected function tearDown(): void
-    {
-        File::deleteDirectory($this->workingDirectory);
-
-        parent::tearDown();
+        config(['backups.disk' => 'backups']);
     }
 
     public function test_stores_the_encrypted_json_export_with_its_password_and_marks_the_backup_succeeded(): void
     {
         $this->travelTo('2026-10-13 12:00:00');
         Storage::fake('backups');
+        Storage::fake('bitwarden-cli');
         $vault = Vault::factory()->create(['encrypted_json_export_password' => 'bitwarden-export-secret']);
         $backup = Backup::factory()->for($vault)->create();
         $this->fakeExport();
@@ -75,6 +62,7 @@ class BackupVaultTest extends TestCase
     {
         $this->travelTo('2026-10-13 12:00:00');
         Storage::fake('backups');
+        Storage::fake('bitwarden-cli');
         $vault = Vault::factory()->withoutEncryptedJsonExport()->withJsonExport()->create();
         $backup = Backup::factory()->for($vault)->create();
         $this->fakeExport();
@@ -93,6 +81,7 @@ class BackupVaultTest extends TestCase
     {
         $this->travelTo('2026-10-13 12:00:00');
         Storage::fake('backups');
+        Storage::fake('bitwarden-cli');
         $vault = Vault::factory()->withoutEncryptedJsonExport()->withJsonExport('zip-secret')->create();
         $backup = Backup::factory()->for($vault)->create();
         $this->fakeExport();
@@ -116,6 +105,7 @@ class BackupVaultTest extends TestCase
     public function test_backs_up_every_enabled_format_in_one_run(): void
     {
         Storage::fake('backups');
+        Storage::fake('bitwarden-cli');
         $vault = Vault::factory()->withJsonExport()->create();
         $backup = Backup::factory()->for($vault)->create();
         $this->fakeExport();
@@ -131,6 +121,7 @@ class BackupVaultTest extends TestCase
     public function test_files_keep_the_password_they_were_made_with_after_the_vault_password_changes(): void
     {
         Storage::fake('backups');
+        Storage::fake('bitwarden-cli');
         $vault = Vault::factory()->create(['encrypted_json_export_password' => 'original-secret']);
         $backup = Backup::factory()->for($vault)->create();
         $this->fakeExport();
@@ -144,18 +135,20 @@ class BackupVaultTest extends TestCase
     public function test_removes_every_local_export_once_stored(): void
     {
         Storage::fake('backups');
+        Storage::fake('bitwarden-cli');
         $vault = Vault::factory()->withJsonExport('zip-secret')->create();
         $backup = Backup::factory()->for($vault)->create();
         $this->fakeExport();
 
         $this->runJob($backup);
 
-        $this->assertSame([], File::files($this->workingDirectory));
+        $this->assertSame([], Storage::disk('bitwarden-cli')->allFiles());
     }
 
     public function test_announces_the_successful_backup(): void
     {
         Storage::fake('backups');
+        Storage::fake('bitwarden-cli');
         $backup = Backup::factory()->create();
         $this->fakeExport();
         Event::fake([BackupSucceeded::class]);
@@ -168,6 +161,7 @@ class BackupVaultTest extends TestCase
     public function test_failed_export_stores_nothing_and_rethrows_for_a_retry(): void
     {
         Storage::fake('backups');
+        Storage::fake('bitwarden-cli');
         $backup = Backup::factory()->create();
         $this->mock(BitwardenCli::class, function (MockInterface $mock): void {
             $mock->shouldReceive('exportVault')->once()->andThrow(new BitwardenCliException('Unlock failed.'));
@@ -237,9 +231,9 @@ class BackupVaultTest extends TestCase
         $this->mock(BitwardenCli::class, function (MockInterface $mock): void {
             $mock->shouldReceive('exportVault')
                 ->once()
-                ->andReturnUsing(function (Vault $vault, array $destinations): void {
-                    foreach ($destinations as $format => $destination) {
-                        file_put_contents($destination, "{\"format\":\"{$format}\"}");
+                ->andReturnUsing(function (Vault $vault, VaultExport ...$exports): void {
+                    foreach ($exports as $export) {
+                        file_put_contents($export->path, "{\"format\":\"{$export->format->value}\"}");
                     }
                 });
         });

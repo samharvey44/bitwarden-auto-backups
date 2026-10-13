@@ -111,6 +111,13 @@ sail npm install <package>
 sail shell              # Open a shell in the app container
 ```
 
+Backups run on the queue and are triggered by the scheduler. `sail up` starts both alongside the app as the `queue` and `scheduler` services, so backups run whenever the containers are up. The queue worker picks up code changes automatically. To follow their output:
+
+```bash
+sail logs -f queue       # Queued backup jobs
+sail logs -f scheduler   # Backups being queued as they become due
+```
+
 ## Services
 
 | Service | URL / Host | Notes |

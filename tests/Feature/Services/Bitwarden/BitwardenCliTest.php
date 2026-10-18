@@ -41,7 +41,7 @@ class BitwardenCliTest extends TestCase
             ['/opt/bw', '--nointeraction', 'login', '--apikey'],
             ['/opt/bw', '--nointeraction', 'unlock', '--passwordenv', 'BW_PASSWORD', '--raw'],
             ['/opt/bw', '--nointeraction', 'sync'],
-            ['/opt/bw', '--nointeraction', 'export', '--format', 'encrypted_json', '--password', $vault->encrypted_json_export_password, '--raw'],
+            ['/opt/bw', '--nointeraction', 'export', '--format', 'encrypted_json', '--password='.$vault->encrypted_json_export_password, '--raw'],
             ['/opt/bw', '--nointeraction', 'logout'],
         ], $processes->pluck('command')->all());
     }
@@ -64,7 +64,7 @@ class BitwardenCliTest extends TestCase
             ['/opt/bw', '--nointeraction', 'unlock', '--passwordenv', 'BW_PASSWORD', '--raw'],
             ['/opt/bw', '--nointeraction', 'sync'],
             ['/opt/bw', '--nointeraction', 'export', '--format', 'json', '--raw'],
-            ['/opt/bw', '--nointeraction', 'export', '--format', 'encrypted_json', '--password', $vault->encrypted_json_export_password, '--raw'],
+            ['/opt/bw', '--nointeraction', 'export', '--format', 'encrypted_json', '--password='.$vault->encrypted_json_export_password, '--raw'],
             ['/opt/bw', '--nointeraction', 'logout'],
         ], $processes->pluck('command')->all());
     }
@@ -135,6 +135,42 @@ class BitwardenCliTest extends TestCase
             ['global_applicationId_appId' => $vault->bitwarden_device_id],
             ['global_applicationId_appId' => $vault->bitwarden_device_id],
         ], $seededDataFiles);
+    }
+
+    public function test_passes_an_export_password_starting_with_a_dash_as_its_value(): void
+    {
+        Storage::fake('bitwarden-cli');
+        $vault = Vault::factory()->create(['encrypted_json_export_password' => '-Correct-Horse-9']);
+        $processes = $this->fakeCli();
+
+        app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
+
+        $this->assertContains(
+            ['/opt/bw', '--nointeraction', 'export', '--format', 'encrypted_json', '--password=-Correct-Horse-9', '--raw'],
+            $processes->pluck('command')->all(),
+        );
+    }
+
+    public function test_never_passes_this_apps_secrets_to_the_cli(): void
+    {
+        Storage::fake('bitwarden-cli');
+        $vault = Vault::factory()->create();
+        $this->withProcessEnvironment([
+            'DB_PASSWORD' => 'database-secret',
+            'MAIL_PASSWORD' => 'mail-secret',
+            'AWS_SECRET_ACCESS_KEY' => 'aws-secret',
+        ]);
+        $processes = $this->fakeCli();
+
+        app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
+
+        foreach ($processes as $process) {
+            foreach (['APP_KEY', 'DB_PASSWORD', 'MAIL_PASSWORD', 'AWS_SECRET_ACCESS_KEY'] as $secret) {
+                $this->assertFalse($process->environment[$secret], "{$secret} was passed to [{$process->command[2]}].");
+            }
+
+            $this->assertArrayNotHasKey('PATH', $process->environment, 'PATH should still be inherited, so the CLI can find Node.');
+        }
     }
 
     public function test_configures_a_non_us_server_url_before_logging_in(): void

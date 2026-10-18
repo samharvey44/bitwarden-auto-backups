@@ -16,6 +16,35 @@ use Illuminate\Support\Str;
 class BitwardenCli
 {
     /**
+     * The variables from this app's environment that the CLI still receives,
+     * for finding Node, locale and time settings, and reaching servers through
+     * a proxy or with a custom certificate authority.
+     *
+     * Everything else is removed, as the environment also holds APP_KEY and the
+     * database, mail and storage credentials loaded from .env, which the CLI
+     * never needs and should never see.
+     *
+     * @var list<string>
+     */
+    private const array INHERITED_VARIABLES = [
+        'PATH',
+        'HOME',
+        'LANG',
+        'LC_ALL',
+        'TZ',
+        'TMPDIR',
+        'HTTP_PROXY',
+        'HTTPS_PROXY',
+        'NO_PROXY',
+        'http_proxy',
+        'https_proxy',
+        'no_proxy',
+        'NODE_EXTRA_CA_CERTS',
+        'SSL_CERT_FILE',
+        'SSL_CERT_DIR',
+    ];
+
+    /**
      * Export the vault in each requested format, logging in only once.
      *
      * Exports are read from the CLI's standard output rather than written to
@@ -120,7 +149,9 @@ class BitwardenCli
             BackupFormat::EncryptedJson => [
                 'export',
                 '--format', 'encrypted_json',
-                '--password', $vault->encrypted_json_export_password,
+                // Passed as one argument, as the CLI would otherwise read a password
+                // starting with "-" as an option instead of the password's value.
+                '--password='.$vault->encrypted_json_export_password,
                 '--raw',
             ],
         };
@@ -141,7 +172,7 @@ class BitwardenCli
     {
         try {
             $result = Process::timeout(config('backups.cli.timeout'))
-                ->env($environment)
+                ->env($this->withoutInheritedSecrets($environment))
                 ->run([config('backups.cli.path'), '--nointeraction', ...$arguments]);
         } catch (ProcessTimedOutException) {
             // The timeout exception's message repeats the full command line,
@@ -165,7 +196,27 @@ class BitwardenCli
     private function logOut(array $environment): void
     {
         rescue(fn () => Process::timeout(config('backups.cli.timeout'))
-            ->env($environment)
+            ->env($this->withoutInheritedSecrets($environment))
             ->run([config('backups.cli.path'), '--nointeraction', 'logout']), report: false);
+    }
+
+    /**
+     * Get the environment to run the CLI with: the given variables, with every
+     * inherited variable not in INHERITED_VARIABLES removed.
+     *
+     * A process inherits this app's whole environment unless a variable is set
+     * to false, which removes it.
+     *
+     * @param  array<string, string>  $environment
+     * @return array<string, string|false>
+     */
+    private function withoutInheritedSecrets(array $environment): array
+    {
+        $inherited = array_keys(getenv() + $_ENV);
+
+        return [
+            ...array_fill_keys(array_diff($inherited, self::INHERITED_VARIABLES), false),
+            ...$environment,
+        ];
     }
 }

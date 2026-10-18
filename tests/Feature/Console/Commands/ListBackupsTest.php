@@ -17,8 +17,8 @@ class ListBackupsTest extends TestCase
         $vault = Vault::factory()->create();
         $this->travelTo('2026-10-12 12:00:00');
         $succeeded = Backup::factory()->for($vault)->succeeded()->create();
-        BackupFile::factory()->for($succeeded)->create(['disk' => 'backups', 'path' => 'backups/1/a.encrypted.json', 'size_bytes' => 2048]);
-        BackupFile::factory()->for($succeeded)->json('zip-secret')->create(['disk' => 'backups', 'path' => 'backups/1/a.zip', 'size_bytes' => 1024]);
+        BackupFile::factory()->for($succeeded)->create(['disk' => 'backups', 'path' => '1/a.encrypted.json', 'size_bytes' => 2048]);
+        BackupFile::factory()->for($succeeded)->json('zip-secret')->create(['disk' => 'backups', 'path' => '1/a.zip', 'size_bytes' => 1024]);
         $this->travelTo('2026-10-13 12:00:00');
         $failed = Backup::factory()->for($vault)->failed()->create();
         Backup::factory()->succeeded()->create();
@@ -28,7 +28,7 @@ class ListBackupsTest extends TestCase
                 ['ID', 'Status', 'Started', 'Completed', 'Files', 'Error'],
                 [
                     [$failed->id, 'Failed', '2026-10-13 12:00:00', '2026-10-13 12:00:00', '', 'Bitwarden CLI command [unlock] failed with exit code 1: Invalid master password.'],
-                    [$succeeded->id, 'Succeeded', '2026-10-12 12:00:00', '2026-10-12 12:00:00', "backups:backups/1/a.encrypted.json (2.0 KB)\nbackups:backups/1/a.zip (1.0 KB)", ''],
+                    [$succeeded->id, 'Succeeded', '2026-10-12 12:00:00', '2026-10-12 12:00:00', "backups:1/a.encrypted.json (2.0 KB)\nbackups:1/a.zip (1.0 KB)", ''],
                 ],
             )
             ->assertSuccessful();

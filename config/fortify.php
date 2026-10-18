@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureRegistrationIsEnabled;
 use Laravel\Fortify\Features;
 
 return [
@@ -101,7 +102,20 @@ return [
     |
     */
 
-    'middleware' => ['web'],
+    'middleware' => ['web', EnsureRegistrationIsEnabled::class],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Registration
+    |--------------------------------------------------------------------------
+    |
+    | Whether anyone can create an account from the register page. When this is
+    | disabled, users can only be created with the users:create command, and
+    | the register page and its form submission both respond as not found.
+    |
+    */
+
+    'registration_enabled' => (bool) env('REGISTRATION_ENABLED', false),
 
     /*
     |--------------------------------------------------------------------------
@@ -144,6 +158,7 @@ return [
     */
 
     'features' => [
+        Features::registration(),
         Features::resetPasswords(),
         // Features::emailVerification(),
         Features::updateProfileInformation(),

@@ -22,13 +22,6 @@ class BackupVaultTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        config(['backups.disk' => 'backups']);
-    }
-
     public function test_stores_the_encrypted_json_export_with_its_password_and_marks_the_backup_succeeded(): void
     {
         $this->travelTo('2026-10-13 12:00:00');
@@ -40,7 +33,7 @@ class BackupVaultTest extends TestCase
 
         $this->runJob($backup);
 
-        $expectedPath = "backups/{$vault->id}/2026-10-13_120000-{$backup->id}.encrypted.json";
+        $expectedPath = "{$vault->id}/2026-10-13_120000-{$backup->id}.encrypted.json";
         Storage::disk('backups')->assertExists($expectedPath, '{"format":"encrypted_json"}');
 
         $file = $backup->files()->sole();
@@ -71,7 +64,7 @@ class BackupVaultTest extends TestCase
 
         $file = $backup->files()->sole();
         $this->assertSame(BackupFormat::Json, $file->format);
-        $this->assertSame("backups/{$vault->id}/2026-10-13_120000-{$backup->id}.json", $file->path);
+        $this->assertSame("{$vault->id}/2026-10-13_120000-{$backup->id}.json", $file->path);
         $this->assertNull($file->password);
 
         Storage::disk('backups')->assertExists($file->path, '{"format":"json"}');
@@ -89,7 +82,7 @@ class BackupVaultTest extends TestCase
         $this->runJob($backup);
 
         $file = $backup->files()->sole();
-        $this->assertSame("backups/{$vault->id}/2026-10-13_120000-{$backup->id}.zip", $file->path);
+        $this->assertSame("{$vault->id}/2026-10-13_120000-{$backup->id}.zip", $file->path);
         $this->assertSame('zip-secret', $file->password);
 
         $zip = new ZipArchive;

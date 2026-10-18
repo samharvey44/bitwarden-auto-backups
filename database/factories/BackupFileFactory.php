@@ -22,8 +22,8 @@ class BackupFileFactory extends Factory
         return [
             'backup_id' => Backup::factory()->succeeded(),
             'format' => BackupFormat::EncryptedJson,
-            'disk' => 'local',
-            'path' => 'backups/'.fake()->uuid().'/vault.encrypted.json',
+            'disk' => 'backups',
+            'path' => fake()->uuid().'/vault.encrypted.json',
             'size_bytes' => fake()->numberBetween(1_000, 100_000),
             'password' => fake()->password(16),
         ];
@@ -37,7 +37,7 @@ class BackupFileFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'format' => BackupFormat::Json,
-            'path' => 'backups/'.fake()->uuid().(is_null($zipPassword) ? '/vault.json' : '/vault.zip'),
+            'path' => fake()->uuid().(is_null($zipPassword) ? '/vault.json' : '/vault.zip'),
             'password' => $zipPassword,
         ]);
     }

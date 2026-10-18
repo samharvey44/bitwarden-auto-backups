@@ -38,6 +38,15 @@ return [
             'report' => false,
         ],
 
+        // Where vault backups are stored, selected by BACKUP_DISK.
+        'backups' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/backups'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
         // Scratch space for the Bitwarden CLI.
         // Must stay a local disk, as the CLI runs as a separate process and needs real paths on this machine.
         'bitwarden-cli' => [

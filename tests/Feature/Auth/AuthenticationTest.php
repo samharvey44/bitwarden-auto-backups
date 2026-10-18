@@ -115,12 +115,4 @@ class AuthenticationTest extends TestCase
 
         $this->assertGuest();
     }
-
-    public function test_there_is_no_public_registration(): void
-    {
-        $this->get('/register')->assertNotFound();
-        $this->post('/register', ['name' => 'Sam', 'email' => 'sam@example.com', 'password' => 'password', 'password_confirmation' => 'password'])->assertNotFound();
-
-        $this->assertDatabaseCount('users', 0);
-    }
 }

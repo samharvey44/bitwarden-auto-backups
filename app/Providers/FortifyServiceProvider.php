@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
@@ -28,11 +29,12 @@ class FortifyServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      *
-     * Registration is disabled, so users are only created with the
-     * users:create command.
+     * Registration is only usable when REGISTRATION_ENABLED is true. Otherwise
+     * users are only created with the users:create command.
      */
     public function boot(): void
     {
+        Fortify::createUsersUsing(CreateNewUser::class);
         Fortify::updateUserProfileInformationUsing(UpdateUserProfileInformation::class);
         Fortify::updateUserPasswordsUsing(UpdateUserPassword::class);
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
@@ -56,7 +58,11 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function registerViews(): void
     {
-        Fortify::loginView(fn (): Response => Inertia::render('auth/Login'));
+        Fortify::loginView(fn (): Response => Inertia::render('auth/Login', [
+            'canRegister' => config('fortify.registration_enabled'),
+        ]));
+
+        Fortify::registerView(fn (): Response => Inertia::render('auth/Register'));
 
         Fortify::requestPasswordResetLinkView(fn (): Response => Inertia::render('auth/ForgotPassword'));
 

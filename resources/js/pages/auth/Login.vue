@@ -6,8 +6,16 @@ import CheckboxInput from '../../components/CheckboxInput.vue';
 import FormField from '../../components/FormField.vue';
 import TextInput from '../../components/TextInput.vue';
 import AuthLayout from '../../layouts/AuthLayout.vue';
+import { register } from '../../routes';
 import login from '../../routes/login';
 import password from '../../routes/password';
+
+defineProps({
+    canRegister: {
+        type: Boolean,
+        default: false,
+    },
+});
 
 const page = usePage();
 
@@ -47,5 +55,10 @@ function submit() {
 
             <AppButton type="submit" :processing="form.processing">Log in</AppButton>
         </form>
+
+        <template v-if="canRegister" #footer>
+            Don't have an account?
+            <Link :href="register()" class="text-blue-600 hover:underline dark:text-blue-400">Create one</Link>
+        </template>
     </AuthLayout>
 </template>

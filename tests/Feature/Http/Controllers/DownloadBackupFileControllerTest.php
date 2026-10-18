@@ -25,7 +25,7 @@ class DownloadBackupFileControllerTest extends TestCase
     {
         $user = User::factory()->create();
         $vault = Vault::factory()->for($user)->create(['name' => 'Personal Vault']);
-        $file = $this->storedFile($vault, 'backups/1/2026-10-18_162515-1.encrypted.json', '{"encrypted":true}');
+        $file = $this->storedFile($vault, '1/2026-10-18_162515-1.encrypted.json', '{"encrypted":true}');
 
         $response = $this->actingAs($user)->get("/vaults/{$vault->id}/backup-files/{$file->id}/download");
 

@@ -140,6 +140,8 @@ A vault needs its server's URL (`https://vault.bitwarden.com` for the US cloud, 
 
 New vaults are backed up the next time the scheduler runs, then on their schedule.
 
+Users are only created with `users:create` by default. To let people create their own accounts from a register page in the web interface, set `REGISTRATION_ENABLED=true`.
+
 ### Running without prompts
 
 Pass `--no-interaction` and give settings as options. Secrets are never accepted as options, as they would be left in your shell history, so they are read from environment variables instead:

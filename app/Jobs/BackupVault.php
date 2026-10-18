@@ -158,7 +158,7 @@ class BackupVault implements ShouldQueue
     private function store(Vault $vault, string $extension, #[SensitiveParameter] string $contents): string
     {
         $disk = config('backups.disk');
-        $path = "backups/{$vault->id}/".now()->format('Y-m-d_His')."-{$this->backup->id}.{$extension}";
+        $path = "{$vault->id}/".now()->format('Y-m-d_His')."-{$this->backup->id}.{$extension}";
 
         throw_unless(Storage::disk($disk)->put($path, $contents), RuntimeException::class, "Unable to write the export to the [{$disk}] disk.");
 

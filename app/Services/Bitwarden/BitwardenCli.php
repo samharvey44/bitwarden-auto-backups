@@ -56,9 +56,9 @@ class BitwardenCli
     }
 
     /**
-     * Log in to and unlock the vault in a fresh CLI data directory, run the
-     * callback with the unlocked session's environment, then log out and
-     * remove the data directory.
+     * Log in to and unlock the vault in a fresh CLI data directory, seeded with
+     * the vault's device ID, run the callback with the unlocked session's
+     * environment, then log out and remove the data directory.
      *
      * @template TResult
      *
@@ -73,6 +73,11 @@ class BitwardenCli
         $dataDirectory = (string) Str::uuid();
 
         $workingDisk->makeDirectory($dataDirectory);
+
+        // The CLI reports this ID to Bitwarden as the device logging in. Giving it
+        // the vault's own ID makes every backup the same device, rather than a new
+        // one each run, which would send a "new device" email every time.
+        $workingDisk->put("{$dataDirectory}/data.json", json_encode(['global_applicationId_appId' => $vault->bitwarden_device_id]));
 
         $environment = ['BITWARDENCLI_APPDATA_DIR' => $workingDisk->path($dataDirectory)];
 

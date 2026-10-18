@@ -9,6 +9,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('backups:dispatch-due')
-    ->everyFiveMinutes()
+    ->everyMinute()
     ->withoutOverlapping()
     ->onOneServer();

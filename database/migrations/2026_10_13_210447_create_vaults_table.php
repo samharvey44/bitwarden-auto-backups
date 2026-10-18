@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->string('server_url');
+            $table->uuid('bitwarden_device_id')->unique();
             $table->text('client_id');
             $table->text('client_secret');
             $table->text('master_password');

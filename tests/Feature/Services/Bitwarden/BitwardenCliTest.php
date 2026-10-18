@@ -115,6 +115,28 @@ class BitwardenCliTest extends TestCase
         $this->assertSame([], Storage::disk('bitwarden-cli')->directories());
     }
 
+    public function test_logs_in_as_the_vaults_own_device_on_every_run(): void
+    {
+        Storage::fake('bitwarden-cli');
+        $vault = Vault::factory()->create();
+        $seededDataFiles = [];
+        $this->fakeCli(failing: [
+            'login' => function (PendingProcess $process) use (&$seededDataFiles) {
+                $seededDataFiles[] = json_decode(file_get_contents($process->environment['BITWARDENCLI_APPDATA_DIR'].'/data.json'), true);
+
+                return Process::result();
+            },
+        ]);
+
+        app(BitwardenCli::class)->verifyCredentials($vault);
+        app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
+
+        $this->assertSame([
+            ['global_applicationId_appId' => $vault->bitwarden_device_id],
+            ['global_applicationId_appId' => $vault->bitwarden_device_id],
+        ], $seededDataFiles);
+    }
+
     public function test_configures_a_non_us_server_url_before_logging_in(): void
     {
         Storage::fake('bitwarden-cli');

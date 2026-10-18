@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -34,11 +35,21 @@ use Illuminate\Support\Facades\Storage;
     'next_backup_at',
     'last_backed_up_at',
 ])]
-#[Hidden(['client_id', 'client_secret', 'master_password', 'json_export_password', 'encrypted_json_export_password'])]
+#[Hidden(['bitwarden_device_id', 'client_id', 'client_secret', 'master_password', 'json_export_password', 'encrypted_json_export_password'])]
 class Vault extends Model
 {
     /** @use HasFactory<VaultFactory> */
-    use HasFactory;
+    use HasFactory, HasUuids;
+
+    /**
+     * Get the columns that receive a unique ID when the vault is created.
+     *
+     * @return list<string>
+     */
+    public function uniqueIds(): array
+    {
+        return ['bitwarden_device_id'];
+    }
 
     /**
      * Get the attributes that should be cast.

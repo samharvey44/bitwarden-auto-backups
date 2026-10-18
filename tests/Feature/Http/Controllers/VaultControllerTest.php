@@ -3,6 +3,7 @@
 namespace Tests\Feature\Http\Controllers;
 
 use App\Enums\BackupFrequency;
+use App\Enums\BackupStatus;
 use App\Models\Backup;
 use App\Models\BackupFile;
 use App\Models\User;
@@ -60,7 +61,7 @@ class VaultControllerTest extends TestCase
                 ]));
     }
 
-    public function test_never_sends_the_vaults_secrets_to_the_browser(): void
+    public function test_never_sends_the_vaults_or_its_files_secrets_to_the_browser(): void
     {
         $user = User::factory()->create();
         $vault = Vault::factory()->for($user)->withJsonExport('zip-secret-value')->create([
@@ -70,6 +71,8 @@ class VaultControllerTest extends TestCase
             'encrypted_json_export_password' => 'export-password-value',
         ]);
 
+        BackupFile::factory()->for(Backup::factory()->for($vault)->succeeded())->create(['password' => 'file-password-value']);
+
         foreach (['/vaults', "/vaults/{$vault->id}", "/vaults/{$vault->id}/edit"] as $url) {
             $this->actingAs($user)
                 ->get($url)
@@ -78,7 +81,8 @@ class VaultControllerTest extends TestCase
                 ->assertDontSee('client-secret-value')
                 ->assertDontSee('master-password-value')
                 ->assertDontSee('export-password-value')
-                ->assertDontSee('zip-secret-value');
+                ->assertDontSee('zip-secret-value')
+                ->assertDontSee('file-password-value');
         }
     }
 
@@ -164,6 +168,64 @@ class VaultControllerTest extends TestCase
                 ->where('backupFileCount', 2));
     }
 
+    public function test_shows_the_vaults_backups_newest_first_with_their_files(): void
+    {
+        $user = User::factory()->create();
+        $vault = Vault::factory()->for($user)->create();
+        $this->travelTo('2026-10-12 12:00:00');
+        $older = Backup::factory()->for($vault)->succeeded()->create();
+        $file = BackupFile::factory()->for($older)->json('zip-secret')->create(['size_bytes' => 2048]);
+        $this->travelTo('2026-10-13 12:00:00');
+        $newer = Backup::factory()->for($vault)->failed()->create();
+        Backup::factory()->succeeded()->create();
+
+        $this->actingAs($user)
+            ->get("/vaults/{$vault->id}")
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('backupInProgress', false)
+                ->has('backups.data', 2)
+                ->where('backups.data.0.id', $newer->id)
+                ->where('backups.data.0.status', 'failed')
+                ->where('backups.data.0.status_label', 'Failed')
+                ->where('backups.data.0.error', 'Bitwarden CLI command [unlock] failed with exit code 1: Invalid master password.')
+                ->where('backups.data.0.files', [])
+                ->where('backups.data.1.id', $older->id)
+                ->where('backups.data.1.completed_at', '2026-10-12T12:00:00Z')
+                ->where('backups.data.1.files', [[
+                    'id' => $file->id,
+                    'format' => 'json',
+                    'format_label' => 'JSON',
+                    'size_bytes' => 2048,
+                    'is_encrypted' => true,
+                    'download_url' => "http://localhost/vaults/{$vault->id}/backup-files/{$file->id}/download",
+                ]]));
+    }
+
+    public function test_pages_through_the_backups_ten_at_a_time(): void
+    {
+        $user = User::factory()->create();
+        $vault = Vault::factory()->for($user)->create();
+        Backup::factory()->for($vault)->succeeded()->count(12)->create();
+
+        $this->actingAs($user)
+            ->get("/vaults/{$vault->id}?page=2")
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('backups.data', 2)
+                ->where('backups.current_page', 2)
+                ->where('backups.last_page', 2));
+    }
+
+    public function test_reports_when_a_backup_is_in_progress(): void
+    {
+        $user = User::factory()->create();
+        $vault = Vault::factory()->for($user)->create();
+        Backup::factory()->for($vault)->create(['status' => BackupStatus::Running]);
+
+        $this->actingAs($user)
+            ->get("/vaults/{$vault->id}")
+            ->assertInertia(fn (Assert $page) => $page->where('backupInProgress', true));
+    }
+
     public function test_shows_the_edit_form_with_the_vaults_settings(): void
     {
         $user = User::factory()->create();
@@ -189,7 +251,7 @@ class VaultControllerTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->put("/vaults/{$vault->id}", $this->blankSecrets($vault, ['name' => 'Family']))
+            ->patch("/vaults/{$vault->id}", $this->blankSecrets($vault, ['name' => 'Family']))
             ->assertRedirect("/vaults/{$vault->id}")
             ->assertSessionHasNoErrors()
             ->assertInertiaFlash('success', 'Family was saved.');
@@ -209,7 +271,7 @@ class VaultControllerTest extends TestCase
         $vault = Vault::factory()->for($user)->create(['name' => 'Personal']);
 
         $this->actingAs($user)
-            ->put("/vaults/{$vault->id}", $this->blankSecrets($vault, ['client_secret' => 'new-client-secret', 'master_password' => 'new-master-password']))
+            ->patch("/vaults/{$vault->id}", $this->blankSecrets($vault, ['client_secret' => 'new-client-secret', 'master_password' => 'new-master-password']))
             ->assertInertiaFlash('success', 'Personal was saved. Check its new credentials work.');
 
         $vault->refresh();
@@ -223,7 +285,7 @@ class VaultControllerTest extends TestCase
         $vault = Vault::factory()->for($user)->create(['encrypted_json_export_password' => 'export-secret']);
 
         $this->actingAs($user)
-            ->put("/vaults/{$vault->id}", $this->blankSecrets($vault, ['encrypted_json_export_password' => 'new-export-secret']))
+            ->patch("/vaults/{$vault->id}", $this->blankSecrets($vault, ['encrypted_json_export_password' => 'new-export-secret']))
             ->assertSessionHasErrors(['encrypted_json_export_password' => 'The encrypted JSON export password field confirmation does not match.']);
 
         $this->assertSame('export-secret', $vault->refresh()->encrypted_json_export_password);
@@ -235,7 +297,7 @@ class VaultControllerTest extends TestCase
         $vault = Vault::factory()->for($user)->withoutEncryptedJsonExport()->withJsonExport()->create();
 
         $this->actingAs($user)
-            ->put("/vaults/{$vault->id}", $this->blankSecrets($vault, ['formats' => ['json', 'encrypted_json']]))
+            ->patch("/vaults/{$vault->id}", $this->blankSecrets($vault, ['formats' => ['json', 'encrypted_json']]))
             ->assertSessionHasErrors(['encrypted_json_export_password' => 'The encrypted JSON export password field is required.']);
 
         $this->assertFalse($vault->refresh()->encrypted_json_export_enabled);
@@ -247,7 +309,7 @@ class VaultControllerTest extends TestCase
         $vault = Vault::factory()->for($user)->withJsonExport('zip-secret')->create();
 
         $this->actingAs($user)
-            ->put("/vaults/{$vault->id}", $this->blankSecrets($vault, ['remove_json_export_password' => true]))
+            ->patch("/vaults/{$vault->id}", $this->blankSecrets($vault, ['remove_json_export_password' => true]))
             ->assertSessionHasNoErrors();
 
         $this->assertNull($vault->refresh()->json_export_password);
@@ -262,7 +324,7 @@ class VaultControllerTest extends TestCase
             'next_backup_at' => '2026-11-01 09:00:00',
         ]);
 
-        $this->actingAs($user)->put("/vaults/{$vault->id}", $this->blankSecrets($vault, ['frequency' => 'weekly']))->assertSessionHasNoErrors();
+        $this->actingAs($user)->patch("/vaults/{$vault->id}", $this->blankSecrets($vault, ['frequency' => 'weekly']))->assertSessionHasNoErrors();
 
         $this->assertSame('2026-10-08 09:00:00', $vault->refresh()->next_backup_at->toDateTimeString());
     }
@@ -303,7 +365,7 @@ class VaultControllerTest extends TestCase
 
         $this->get("/vaults/{$vault->id}")->assertNotFound();
         $this->get("/vaults/{$vault->id}/edit")->assertNotFound();
-        $this->put("/vaults/{$vault->id}", $this->blankSecrets($vault, ['name' => 'Hijacked']))->assertNotFound();
+        $this->patch("/vaults/{$vault->id}", $this->blankSecrets($vault, ['name' => 'Hijacked']))->assertNotFound();
         $this->delete("/vaults/{$vault->id}")->assertNotFound();
 
         $this->assertSame('Someone else', $vault->refresh()->name);
@@ -320,7 +382,7 @@ class VaultControllerTest extends TestCase
             'add' => ['post', '/vaults'],
             'view' => ['get', '/vaults/1'],
             'edit form' => ['get', '/vaults/1/edit'],
-            'update' => ['put', '/vaults/1'],
+            'update' => ['patch', '/vaults/1'],
             'delete' => ['delete', '/vaults/1'],
         ];
     }

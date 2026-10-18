@@ -6,6 +6,8 @@ import CheckboxInput from '../../components/CheckboxInput.vue';
 import FormField from '../../components/FormField.vue';
 import TextInput from '../../components/TextInput.vue';
 import AuthLayout from '../../layouts/AuthLayout.vue';
+import login from '../../routes/login';
+import password from '../../routes/password';
 
 const page = usePage();
 
@@ -16,7 +18,7 @@ const form = useForm({
 });
 
 function submit() {
-    form.post('/login', {
+    form.submit(login.store(), {
         onFinish: () => form.reset('password'),
     });
 }
@@ -33,7 +35,7 @@ function submit() {
 
             <FormField label="Password" for="password" :error="form.errors.password">
                 <template #aside>
-                    <Link href="/forgot-password" class="text-sm text-blue-600 hover:underline dark:text-blue-400">Forgot password?</Link>
+                    <Link :href="password.request()" class="text-sm text-blue-600 hover:underline dark:text-blue-400">Forgot password?</Link>
                 </template>
                 <TextInput id="password" v-model="form.password" type="password" autocomplete="current-password" required :invalid="!!form.errors.password" />
             </FormField>

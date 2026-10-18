@@ -7,6 +7,7 @@ import AppCard from '../../components/AppCard.vue';
 import FormField from '../../components/FormField.vue';
 import TextInput from '../../components/TextInput.vue';
 import SettingsLayout from '../../layouts/SettingsLayout.vue';
+import twoFactor from '../../routes/two-factor';
 
 const props = defineProps({
     enabled: {
@@ -34,7 +35,7 @@ async function loadSetupDetails() {
     loadError.value = null;
 
     try {
-        await Promise.all([qrCode.get('/user/two-factor-qr-code'), secretKey.get('/user/two-factor-secret-key')]);
+        await Promise.all([qrCode.get(twoFactor.qrCode.url()), secretKey.get(twoFactor.secretKey.url())]);
     } catch {
         loadError.value = 'The setup QR code could not be loaded. Reload the page to try again.';
     }
@@ -44,16 +45,15 @@ async function loadRecoveryCodes() {
     loadError.value = null;
 
     try {
-        await recoveryCodes.get('/user/two-factor-recovery-codes');
+        await recoveryCodes.get(twoFactor.recoveryCodes.url());
         showRecoveryCodes.value = true;
     } catch {
         loadError.value = 'Your recovery codes could not be loaded. Reload the page to try again.';
     }
 }
 
-function visit(method, url, onSuccess = () => {}) {
-    router.visit(url, {
-        method,
+function visit(route, onSuccess = () => {}) {
+    router.visit(route, {
         preserveScroll: true,
         onStart: () => (processing.value = true),
         onFinish: () => (processing.value = false),
@@ -62,11 +62,11 @@ function visit(method, url, onSuccess = () => {}) {
 }
 
 function enable() {
-    visit('post', '/user/two-factor-authentication');
+    visit(twoFactor.enable());
 }
 
 function confirm() {
-    confirmForm.post('/user/confirmed-two-factor-authentication', {
+    confirmForm.submit(twoFactor.confirm(), {
         errorBag: 'confirmTwoFactorAuthentication',
         preserveScroll: true,
         onSuccess: () => {
@@ -77,11 +77,11 @@ function confirm() {
 }
 
 function regenerateRecoveryCodes() {
-    visit('post', '/user/two-factor-recovery-codes', loadRecoveryCodes);
+    visit(twoFactor.regenerateRecoveryCodes(), loadRecoveryCodes);
 }
 
 function disable() {
-    visit('delete', '/user/two-factor-authentication', () => (showRecoveryCodes.value = false));
+    visit(twoFactor.disable(), () => (showRecoveryCodes.value = false));
 }
 
 onMounted(() => {

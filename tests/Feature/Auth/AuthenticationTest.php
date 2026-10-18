@@ -86,6 +86,29 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_a_login_waiting_for_a_two_factor_code_can_be_cancelled(): void
+    {
+        $user = User::factory()->withTwoFactorAuthentication()->create();
+        $this->post('/login', ['email' => $user->email, 'password' => 'password'])->assertRedirect('/two-factor-challenge');
+
+        $this->post('/two-factor-challenge/cancel')
+            ->assertRedirect('/login')
+            ->assertSessionMissing('login.id')
+            ->assertSessionMissing('login.remember');
+
+        $this->assertGuest();
+        $this->get('/two-factor-challenge')->assertRedirect('/login');
+        $this->post('/two-factor-challenge', ['recovery_code' => 'recovery-code-1']);
+        $this->assertGuest();
+    }
+
+    public function test_signed_in_users_cannot_cancel_a_two_factor_challenge(): void
+    {
+        $this->actingAs(User::factory()->create())->post('/two-factor-challenge/cancel')->assertRedirect('/');
+
+        $this->assertAuthenticated();
+    }
+
     public function test_users_can_log_out(): void
     {
         $this->actingAs(User::factory()->create())->post('/logout')->assertRedirect('/');

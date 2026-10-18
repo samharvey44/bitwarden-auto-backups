@@ -32,6 +32,18 @@ class PasswordResetTest extends TestCase
         $this->get('/forgot-password')->assertInertia(fn (Assert $page) => $page->where('status', 'We have emailed your password reset link.'));
     }
 
+    public function test_the_reset_email_shows_the_apps_own_logo_and_name(): void
+    {
+        config(['app.name' => 'Bitwarden Auto Backups']);
+        $user = User::factory()->create();
+
+        $html = (string) (new ResetPassword('reset-token'))->toMail($user)->render();
+
+        $this->assertStringContainsString(asset('icon-192.png'), $html);
+        $this->assertStringContainsString('Bitwarden Auto Backups', $html);
+        $this->assertStringNotContainsString('laravel.com/img', $html);
+    }
+
     public function test_shows_the_reset_page_with_the_token_and_email_address(): void
     {
         $this->get('/reset-password/reset-token?email=sam%40example.com')

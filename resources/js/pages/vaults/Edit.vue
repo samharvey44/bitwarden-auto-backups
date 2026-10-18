@@ -2,6 +2,7 @@
 import { useForm } from '@inertiajs/vue3';
 import VaultForm from '../../components/VaultForm.vue';
 import AppLayout from '../../layouts/AppLayout.vue';
+import vaultRoutes from '../../routes/vaults';
 
 const props = defineProps({
     vault: {
@@ -36,15 +37,15 @@ const form = useForm({
 </script>
 
 <template>
-    <AppLayout :title="`Edit ${vault.name}`">
+    <AppLayout :title="`Edit ${vault.name}`" :back="{ href: vaultRoutes.show(vault), label: vault.name }">
         <VaultForm
             :form="form"
             :vault="vault"
             :frequencies="frequencies"
             :cloud-server-urls="cloudServerUrls"
             submit-label="Save changes"
-            :cancel-href="`/vaults/${vault.id}`"
-            @submit="form.put(`/vaults/${vault.id}`)"
+            :cancel-href="vaultRoutes.show(vault)"
+            @submit="form.submit(vaultRoutes.update(vault))"
         />
     </AppLayout>
 </template>

@@ -2,6 +2,7 @@
 import { useForm } from '@inertiajs/vue3';
 import VaultForm from '../../components/VaultForm.vue';
 import AppLayout from '../../layouts/AppLayout.vue';
+import vaultRoutes from '../../routes/vaults';
 
 defineProps({
     frequencies: {
@@ -31,14 +32,14 @@ const form = useForm({
 </script>
 
 <template>
-    <AppLayout title="Add a vault" description="Back up a Bitwarden account on a schedule.">
+    <AppLayout title="Add a vault" description="Back up a Bitwarden account on a schedule." :back="{ href: vaultRoutes.index(), label: 'Vaults' }">
         <VaultForm
             :form="form"
             :frequencies="frequencies"
             :cloud-server-urls="cloudServerUrls"
             submit-label="Add vault"
-            cancel-href="/vaults"
-            @submit="form.post('/vaults')"
+            :cancel-href="vaultRoutes.index()"
+            @submit="form.submit(vaultRoutes.store())"
         />
     </AppLayout>
 </template>

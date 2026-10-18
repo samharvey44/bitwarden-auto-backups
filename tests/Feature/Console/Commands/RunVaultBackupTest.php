@@ -52,4 +52,18 @@ class RunVaultBackupTest extends TestCase
         Queue::assertNotPushed(BackupVault::class);
         $this->assertDatabaseCount('backups', 0);
     }
+
+    public function test_fails_when_a_backup_of_the_vault_is_already_in_progress(): void
+    {
+        $vault = Vault::factory()->create(['name' => 'Personal']);
+        $vault->backups()->create(['status' => BackupStatus::Running]);
+        Queue::fake([BackupVault::class]);
+
+        $this->artisan('backups:run', ['vault' => $vault->id])
+            ->expectsOutputToContain('A backup of vault [Personal] is already queued or running.')
+            ->assertFailed();
+
+        Queue::assertNotPushed(BackupVault::class);
+        $this->assertSame(1, $vault->backups()->count());
+    }
 }

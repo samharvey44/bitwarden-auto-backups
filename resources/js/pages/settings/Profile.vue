@@ -5,6 +5,7 @@ import AppCard from '../../components/AppCard.vue';
 import FormField from '../../components/FormField.vue';
 import TextInput from '../../components/TextInput.vue';
 import SettingsLayout from '../../layouts/SettingsLayout.vue';
+import userProfileInformation from '../../routes/user-profile-information';
 
 const page = usePage();
 
@@ -14,7 +15,7 @@ const form = useForm({
 });
 
 function submit() {
-    form.put('/user/profile-information', {
+    form.submit(userProfileInformation.update(), {
         errorBag: 'updateProfileInformation',
         preserveScroll: true,
     });

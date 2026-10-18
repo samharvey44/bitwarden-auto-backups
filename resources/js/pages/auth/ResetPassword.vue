@@ -4,6 +4,7 @@ import AppButton from '../../components/AppButton.vue';
 import FormField from '../../components/FormField.vue';
 import TextInput from '../../components/TextInput.vue';
 import AuthLayout from '../../layouts/AuthLayout.vue';
+import password from '../../routes/password';
 
 const props = defineProps({
     token: {
@@ -24,7 +25,7 @@ const form = useForm({
 });
 
 function submit() {
-    form.post('/reset-password', {
+    form.submit(password.update(), {
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
 }

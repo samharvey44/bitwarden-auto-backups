@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\BackupFormat;
 use App\Enums\BackupFrequency;
+use App\Enums\BackupStatus;
+use App\Jobs\BackupVault;
 use Database\Factories\VaultFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -87,6 +89,26 @@ class Vault extends Model
     public function backupFiles(): HasManyThrough
     {
         return $this->hasManyThrough(BackupFile::class, Backup::class);
+    }
+
+    /**
+     * Queue a backup of the vault now.
+     */
+    public function queueBackup(): Backup
+    {
+        $backup = $this->backups()->create(['status' => BackupStatus::Pending]);
+
+        BackupVault::dispatch($backup);
+
+        return $backup;
+    }
+
+    /**
+     * Determine whether a backup of the vault is queued or running.
+     */
+    public function hasBackupInProgress(): bool
+    {
+        return $this->backups()->whereIn('status', BackupStatus::inProgress())->exists();
     }
 
     /**

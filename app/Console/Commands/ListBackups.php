@@ -47,7 +47,7 @@ class ListBackups extends Command
             ['ID', 'Status', 'Started', 'Completed', 'Files', 'Error'],
             $backups->map(fn (Backup $backup): array => [
                 $backup->id,
-                Str::headline($backup->status->value),
+                $backup->status->label(),
                 $backup->started_at?->toDateTimeString() ?? '',
                 $backup->completed_at?->toDateTimeString() ?? '',
                 $backup->files

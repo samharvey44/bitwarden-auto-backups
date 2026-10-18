@@ -4,6 +4,7 @@ import AppButton from '../../components/AppButton.vue';
 import { formatDateTime } from '../../lib/formatDateTime';
 import { formatLabels, nextBackupLabel } from '../../lib/vaults';
 import AppLayout from '../../layouts/AppLayout.vue';
+import vaultRoutes from '../../routes/vaults';
 
 defineProps({
     vaults: {
@@ -16,7 +17,7 @@ defineProps({
 <template>
     <AppLayout title="Vaults">
         <template v-if="vaults.length" #actions>
-            <AppButton href="/vaults/create">Add vault</AppButton>
+            <AppButton :href="vaultRoutes.create()">Add vault</AppButton>
         </template>
 
         <div
@@ -27,7 +28,7 @@ defineProps({
                 <h2 class="font-semibold">No vaults yet</h2>
                 <p class="text-sm text-zinc-500 dark:text-zinc-400">Add a Bitwarden account to start backing it up on a schedule.</p>
             </div>
-            <AppButton href="/vaults/create">Add your first vault</AppButton>
+            <AppButton :href="vaultRoutes.create()">Add your first vault</AppButton>
         </div>
 
         <ul
@@ -36,7 +37,7 @@ defineProps({
         >
             <li v-for="vault in vaults" :key="vault.id">
                 <Link
-                    :href="`/vaults/${vault.id}`"
+                    :href="vaultRoutes.show(vault)"
                     class="grid gap-3 px-5 py-4 hover:bg-zinc-50 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] sm:items-center dark:hover:bg-zinc-800/50"
                 >
                     <div class="flex min-w-0 flex-col gap-1">

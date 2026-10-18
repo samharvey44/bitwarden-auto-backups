@@ -1,10 +1,11 @@
 <script setup>
-import { useForm } from '@inertiajs/vue3';
+import { Link, useForm } from '@inertiajs/vue3';
 import { nextTick, ref } from 'vue';
 import AppButton from '../../components/AppButton.vue';
 import FormField from '../../components/FormField.vue';
 import TextInput from '../../components/TextInput.vue';
 import AuthLayout from '../../layouts/AuthLayout.vue';
+import twoFactorLogin from '../../routes/two-factor/login';
 
 const usingRecoveryCode = ref(false);
 const codeInput = ref(null);
@@ -24,7 +25,7 @@ async function toggleRecoveryCode() {
 }
 
 function submit() {
-    form.transform((data) => (usingRecoveryCode.value ? { recovery_code: data.recovery_code } : { code: data.code })).post('/two-factor-challenge');
+    form.transform((data) => (usingRecoveryCode.value ? { recovery_code: data.recovery_code } : { code: data.code })).submit(twoFactorLogin.store());
 }
 </script>
 
@@ -61,9 +62,14 @@ function submit() {
         </form>
 
         <template #footer>
-            <button type="button" class="text-blue-600 hover:underline dark:text-blue-400" @click="toggleRecoveryCode">
-                {{ usingRecoveryCode ? 'Use an authentication code instead' : 'Use a recovery code instead' }}
-            </button>
+            <div class="flex flex-col items-center gap-3">
+                <button type="button" class="text-blue-600 hover:underline dark:text-blue-400" @click="toggleRecoveryCode">
+                    {{ usingRecoveryCode ? 'Use an authentication code instead' : 'Use a recovery code instead' }}
+                </button>
+                <Link :href="twoFactorLogin.cancel()" as="button" class="hover:text-zinc-900 hover:underline dark:hover:text-zinc-100">
+                    Cancel and go back to log in
+                </Link>
+            </div>
         </template>
     </AuthLayout>
 </template>

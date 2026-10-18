@@ -8,7 +8,9 @@ use App\Http\Requests\EditVaultRequest;
 use App\Http\Requests\ShowVaultRequest;
 use App\Http\Requests\StoreVaultRequest;
 use App\Http\Requests\UpdateVaultRequest;
+use App\Http\Resources\BackupResource;
 use App\Http\Resources\VaultResource;
+use App\Models\Backup;
 use App\Models\Vault;
 use App\Services\VaultSettings;
 use Illuminate\Http\RedirectResponse;
@@ -49,12 +51,19 @@ class VaultController extends Controller
     }
 
     /**
-     * Show a vault's settings.
+     * Show a vault's settings and its backups, newest first.
      */
     public function show(ShowVaultRequest $request, Vault $vault): Response
     {
         return Inertia::render('vaults/Show', [
             'vault' => VaultResource::make($vault)->resolve(),
+            'backups' => $vault->backups()
+                ->with('files')
+                ->latest()
+                ->latest('id')
+                ->paginate(10)
+                ->through(fn (Backup $backup): array => BackupResource::make($backup)->resolve()),
+            'backupInProgress' => $vault->hasBackupInProgress(),
             'backupFileCount' => $vault->backupFiles()->count(),
         ]);
     }

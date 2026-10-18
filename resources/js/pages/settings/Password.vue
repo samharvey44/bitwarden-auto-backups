@@ -5,6 +5,7 @@ import AppCard from '../../components/AppCard.vue';
 import FormField from '../../components/FormField.vue';
 import TextInput from '../../components/TextInput.vue';
 import SettingsLayout from '../../layouts/SettingsLayout.vue';
+import userPassword from '../../routes/user-password';
 
 const form = useForm({
     current_password: '',
@@ -13,7 +14,7 @@ const form = useForm({
 });
 
 function submit() {
-    form.put('/user/password', {
+    form.submit(userPassword.update(), {
         errorBag: 'updatePassword',
         preserveScroll: true,
         onSuccess: () => form.reset(),

@@ -5,6 +5,8 @@ import AppButton from '../../components/AppButton.vue';
 import FormField from '../../components/FormField.vue';
 import TextInput from '../../components/TextInput.vue';
 import AuthLayout from '../../layouts/AuthLayout.vue';
+import { login } from '../../routes';
+import password from '../../routes/password';
 
 const page = usePage();
 
@@ -15,7 +17,7 @@ const form = useForm({
 
 <template>
     <AuthLayout title="Forgot your password?" description="Enter your email address and we'll send you a link to choose a new one.">
-        <form class="flex flex-col gap-5" @submit.prevent="form.post('/forgot-password')">
+        <form class="flex flex-col gap-5" @submit.prevent="form.submit(password.email())">
             <AppAlert v-if="page.props.status" tone="success">{{ page.props.status }}</AppAlert>
 
             <FormField label="Email address" for="email" :error="form.errors.email">
@@ -26,7 +28,7 @@ const form = useForm({
         </form>
 
         <template #footer>
-            <Link href="/login" class="text-blue-600 hover:underline dark:text-blue-400">Back to log in</Link>
+            <Link :href="login()" class="text-blue-600 hover:underline dark:text-blue-400">Back to log in</Link>
         </template>
     </AuthLayout>
 </template>

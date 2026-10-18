@@ -3,8 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Console\Commands\Concerns\FindsVaults;
-use App\Enums\BackupStatus;
-use App\Jobs\BackupVault;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -32,9 +30,13 @@ class RunVaultBackup extends Command
             return self::FAILURE;
         }
 
-        $backup = $vault->backups()->create(['status' => BackupStatus::Pending]);
+        if ($vault->hasBackupInProgress()) {
+            $this->components->error("A backup of vault [{$vault->name}] is already queued or running.");
 
-        BackupVault::dispatch($backup);
+            return self::FAILURE;
+        }
+
+        $backup = $vault->queueBackup();
 
         $this->components->info("Queued backup [{$backup->id}] of vault [{$vault->name}].");
 

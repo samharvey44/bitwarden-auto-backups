@@ -2,8 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\BackupStatus;
-use App\Jobs\BackupVault;
 use App\Models\Vault;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
@@ -24,11 +22,9 @@ class DispatchDueBackups extends Command
 
         Vault::query()->dueForBackup()->chunkById(100, function (Collection $vaults) use (&$dispatched): void {
             $vaults->each(function (Vault $vault) use (&$dispatched): void {
-                $backup = $vault->backups()->create(['status' => BackupStatus::Pending]);
-
                 $vault->update(['next_backup_at' => $this->nextBackupTime($vault)]);
 
-                BackupVault::dispatch($backup);
+                $vault->queueBackup();
 
                 $dispatched++;
             });

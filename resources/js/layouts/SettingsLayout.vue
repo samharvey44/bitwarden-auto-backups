@@ -1,13 +1,14 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
+import settings from '../routes/settings';
 import AppLayout from './AppLayout.vue';
 
 const page = usePage();
 
 const sections = [
-    { label: 'Profile', href: '/settings/profile' },
-    { label: 'Password', href: '/settings/password' },
-    { label: 'Two-factor authentication', href: '/settings/two-factor' },
+    { label: 'Profile', route: settings.profile },
+    { label: 'Password', route: settings.password },
+    { label: 'Two-factor authentication', route: settings.twoFactor },
 ];
 </script>
 
@@ -17,10 +18,10 @@ const sections = [
             <nav class="flex shrink-0 gap-1 overflow-x-auto md:w-56 md:flex-col">
                 <Link
                     v-for="section in sections"
-                    :key="section.href"
-                    :href="section.href"
+                    :key="section.label"
+                    :href="section.route()"
                     :class="
-                        page.url.startsWith(section.href)
+                        page.url.startsWith(section.route.url())
                             ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
                             : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
                     "

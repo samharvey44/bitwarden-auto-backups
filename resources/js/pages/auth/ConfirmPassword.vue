@@ -1,16 +1,30 @@
 <script setup>
-import { useForm } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
 import AppButton from '../../components/AppButton.vue';
 import FormField from '../../components/FormField.vue';
 import TextInput from '../../components/TextInput.vue';
 import AuthLayout from '../../layouts/AuthLayout.vue';
+import passwordConfirmation from '../../routes/password/confirm';
+import settings from '../../routes/settings';
 
 const form = useForm({
     password: '',
 });
 
+/**
+ * Return to the page that asked for the password, or to settings when this
+ * page was opened directly.
+ */
+function goBack() {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        router.visit(settings.profile());
+    }
+}
+
 function submit() {
-    form.post('/user/confirm-password', {
+    form.submit(passwordConfirmation.store(), {
         onFinish: () => form.reset(),
     });
 }
@@ -25,5 +39,9 @@ function submit() {
 
             <AppButton type="submit" :processing="form.processing">Confirm</AppButton>
         </form>
+
+        <template #footer>
+            <button type="button" class="text-blue-600 hover:underline dark:text-blue-400" @click="goBack">Go back</button>
+        </template>
     </AuthLayout>
 </template>

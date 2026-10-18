@@ -47,6 +47,6 @@ class Backup extends Model
      */
     public function files(): HasMany
     {
-        return $this->hasMany(BackupFile::class);
+        return $this->hasMany(BackupFile::class)->chaperone();
     }
 }

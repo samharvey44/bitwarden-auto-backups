@@ -3,15 +3,25 @@ import { useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import AppButton from '../../components/AppButton.vue';
 import AppCard from '../../components/AppCard.vue';
+import BackupHistory from '../../components/BackupHistory.vue';
 import CheckboxInput from '../../components/CheckboxInput.vue';
 import ConfirmDialog from '../../components/ConfirmDialog.vue';
 import { formatDateTime } from '../../lib/formatDateTime';
 import { formatLabels, nextBackupLabel } from '../../lib/vaults';
 import AppLayout from '../../layouts/AppLayout.vue';
+import vaultRoutes from '../../routes/vaults';
 
 const props = defineProps({
     vault: {
         type: Object,
+        required: true,
+    },
+    backups: {
+        type: Object,
+        required: true,
+    },
+    backupInProgress: {
+        type: Boolean,
         required: true,
     },
     backupFileCount: {
@@ -33,22 +43,22 @@ const details = computed(() => [
 ]);
 
 function verify() {
-    verifyForm.post(`/vaults/${props.vault.id}/verify`, { preserveScroll: true });
+    verifyForm.submit(vaultRoutes.verify(props.vault), { preserveScroll: true });
 }
 
 function destroy() {
-    deleteForm.delete(`/vaults/${props.vault.id}`);
+    deleteForm.submit(vaultRoutes.destroy(props.vault));
 }
 </script>
 
 <template>
-    <AppLayout :title="vault.name">
+    <AppLayout :title="vault.name" :back="{ href: vaultRoutes.index(), label: 'Vaults' }">
         <template #actions>
             <div class="flex flex-wrap gap-3">
                 <AppButton variant="secondary" :processing="verifyForm.processing" @click="verify">
                     {{ verifyForm.processing ? 'Checking credentials…' : 'Check credentials' }}
                 </AppButton>
-                <AppButton variant="secondary" :href="`/vaults/${vault.id}/edit`">Edit</AppButton>
+                <AppButton variant="secondary" :href="vaultRoutes.edit(vault)">Edit</AppButton>
             </div>
         </template>
 
@@ -60,6 +70,8 @@ function destroy() {
                 </template>
             </dl>
         </AppCard>
+
+        <BackupHistory :vault="vault" :backups="backups" :backup-in-progress="backupInProgress" />
 
         <AppCard title="Delete vault" description="Removes the vault, its credentials and its backup history.">
             <div>

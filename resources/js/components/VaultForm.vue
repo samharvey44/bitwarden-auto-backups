@@ -36,7 +36,7 @@ const props = defineProps({
         required: true,
     },
     cancelHref: {
-        type: String,
+        type: [String, Object],
         required: true,
     },
 });

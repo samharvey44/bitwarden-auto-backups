@@ -13,10 +13,14 @@ const props = defineProps({
         default: 'button',
     },
     href: {
-        type: String,
+        type: [String, Object],
         default: null,
     },
     processing: {
+        type: Boolean,
+        default: false,
+    },
+    disabled: {
         type: Boolean,
         default: false,
     },
@@ -41,7 +45,7 @@ const classes = computed(() => [
     <Link v-if="href" :href="href" :class="classes">
         <slot />
     </Link>
-    <button v-else :type="type" :class="classes" :disabled="processing">
+    <button v-else :type="type" :class="classes" :disabled="processing || disabled">
         <svg v-if="processing" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25" />
             <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="4" stroke-linecap="round" />

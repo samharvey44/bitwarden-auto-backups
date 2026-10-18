@@ -6,6 +6,7 @@ use App\Console\Commands\Concerns\ConfiguresVaults;
 use App\Console\Commands\Concerns\FindsVaults;
 use App\Enums\BackupFormat;
 use App\Models\Vault;
+use App\Services\VaultSettings;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Help;
 use Illuminate\Console\Attributes\Signature;
@@ -63,19 +64,15 @@ class EditVault extends Command
             $changes = $this->promptForChanges($vault);
         }
 
-        $input = [...$this->currentSettings($vault), ...$changes];
+        $input = [...VaultSettings::fromVault($vault), ...$changes];
 
-        $validated = $this->validateInput($input, $this->vaultRules($input), $this->vaultMessages());
+        $validated = $this->validateInput($input, VaultSettings::rules($input), $this->vaultMessages());
 
         if ($validated === null) {
             return self::FAILURE;
         }
 
-        $vault->fill($this->vaultAttributes($validated));
-
-        if ($vault->isDirty('frequency')) {
-            $vault->next_backup_at = $vault->last_backed_up_at === null ? null : $vault->frequency->nextRunAfter($vault->last_backed_up_at);
-        }
+        VaultSettings::fill($vault, $validated);
 
         $credentialsChanged = $vault->isDirty(['server_url', 'client_id', 'client_secret', 'master_password']);
 
@@ -90,27 +87,6 @@ class EditVault extends Command
         }
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Get the vault's current settings, in the shape they are validated in.
-     *
-     * @return array<string, mixed>
-     */
-    private function currentSettings(Vault $vault): array
-    {
-        return [
-            'name' => $vault->name,
-            'server_url' => $vault->server_url,
-            'client_id' => $vault->client_id,
-            'client_secret' => $vault->client_secret,
-            'master_password' => $vault->master_password,
-            'formats' => array_map(fn (BackupFormat $format): string => $format->value, $vault->enabledFormats()),
-            'json_export_password' => $vault->json_export_password,
-            'encrypted_json_export_password' => $vault->encrypted_json_export_password,
-            'frequency' => $vault->frequency->value,
-            'retain_backups_count' => $vault->retain_backups_count,
-        ];
     }
 
     /**
@@ -161,7 +137,7 @@ class EditVault extends Command
                 label: 'What should the vault be called?',
                 default: $vault->name,
                 required: true,
-                validate: ['name' => $this->vaultRules()['name']],
+                validate: ['name' => VaultSettings::rules()['name']],
             );
         }
 

@@ -4,8 +4,8 @@ namespace App\Console\Commands\Concerns;
 
 use App\Enums\BackupFormat;
 use App\Enums\BackupFrequency;
+use App\Services\VaultSettings;
 use Closure;
-use Illuminate\Validation\Rule;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\multiselect;
@@ -20,16 +20,6 @@ use function Laravel\Prompts\text;
 trait ConfiguresVaults
 {
     use ValidatesInput;
-
-    /**
-     * The server URL of Bitwarden's US cloud.
-     */
-    private const string US_SERVER_URL = 'https://vault.bitwarden.com';
-
-    /**
-     * The server URL of Bitwarden's EU cloud.
-     */
-    private const string EU_SERVER_URL = 'https://vault.bitwarden.eu';
 
     /**
      * The environment variable each secret can be read from.
@@ -67,21 +57,21 @@ trait ConfiguresVaults
                 'self-hosted' => 'Self-hosted',
             ],
             default: match ($current) {
-                null, self::US_SERVER_URL => 'us',
-                self::EU_SERVER_URL => 'eu',
+                null, VaultSettings::US_SERVER_URL => 'us',
+                VaultSettings::EU_SERVER_URL => 'eu',
                 default => 'self-hosted',
             },
         );
 
         return match ($server) {
-            'us' => self::US_SERVER_URL,
-            'eu' => self::EU_SERVER_URL,
+            'us' => VaultSettings::US_SERVER_URL,
+            'eu' => VaultSettings::EU_SERVER_URL,
             'self-hosted' => text(
                 label: 'What is the server URL?',
                 placeholder: 'https://vault.example.com',
-                default: in_array($current, [self::US_SERVER_URL, self::EU_SERVER_URL], true) ? '' : (string) $current,
+                default: in_array($current, [VaultSettings::US_SERVER_URL, VaultSettings::EU_SERVER_URL], true) ? '' : (string) $current,
                 required: true,
-                validate: ['server_url' => $this->vaultRules()['server_url']],
+                validate: ['server_url' => VaultSettings::rules()['server_url']],
             ),
         };
     }
@@ -101,7 +91,7 @@ trait ConfiguresVaults
             'client_id' => fn (): string => password(
                 label: 'API key client_id',
                 required: true,
-                validate: ['client_id' => $this->vaultRules()['client_id']],
+                validate: ['client_id' => VaultSettings::rules()['client_id']],
                 hint: $hint,
             ),
             'client_secret' => fn (): string => password(label: 'API key client_secret', required: true, hint: $hint),
@@ -193,39 +183,9 @@ trait ConfiguresVaults
             label: 'How many successful backups should be kept?',
             default: (string) $current,
             required: true,
-            validate: ['retain_backups_count' => $this->vaultRules()['retain_backups_count']],
+            validate: ['retain_backups_count' => VaultSettings::rules()['retain_backups_count']],
             hint: 'Older backups and their files are deleted after each successful backup.',
         );
-    }
-
-    /**
-     * Get the rules for a vault's settings.
-     *
-     * Formats may be empty so a vault that was paused by having no formats can
-     * still be edited, but each command asks for at least one when prompting.
-     *
-     * @param  array<string, mixed>  $input
-     * @return array<string, mixed>
-     */
-    protected function vaultRules(array $input = []): array
-    {
-        return [
-            'name' => ['required', 'string', 'max:255'],
-            'server_url' => ['required', 'string', 'url:http,https', 'max:255'],
-            'client_id' => ['required', 'string', 'starts_with:user.'],
-            'client_secret' => ['required', 'string'],
-            'master_password' => ['required', 'string'],
-            'formats' => ['present', 'array'],
-            'formats.*' => ['distinct', Rule::enum(BackupFormat::class)],
-            'json_export_password' => ['nullable', 'string'],
-            'encrypted_json_export_password' => [
-                Rule::requiredIf(in_array(BackupFormat::EncryptedJson->value, (array) ($input['formats'] ?? []), true)),
-                'nullable',
-                'string',
-            ],
-            'frequency' => ['required', Rule::enum(BackupFrequency::class)],
-            'retain_backups_count' => ['required', 'integer', 'min:1', 'max:65535'],
-        ];
     }
 
     /**
@@ -237,9 +197,9 @@ trait ConfiguresVaults
     protected function vaultMessages(): array
     {
         return [
-            'server_url.required' => 'The server URL is required. Pass it with --server-url, such as '.self::US_SERVER_URL.' for the US cloud or '.self::EU_SERVER_URL.' for the EU cloud.',
+            ...VaultSettings::messages(),
+            'server_url.required' => 'The server URL is required. Pass it with --server-url, such as '.VaultSettings::US_SERVER_URL.' for the US cloud or '.VaultSettings::EU_SERVER_URL.' for the EU cloud.',
             'client_id.required' => 'The API key client_id is required. Set it in the VAULT_CLIENT_ID environment variable.',
-            'client_id.starts_with' => 'The API key client_id must start with "user.". Make sure it is the client_id, not the client_secret.',
             'client_secret.required' => 'The API key client_secret is required. Set it in the VAULT_CLIENT_SECRET environment variable.',
             'master_password.required' => 'The master password is required. Set it in the VAULT_MASTER_PASSWORD environment variable.',
             'encrypted_json_export_password.required' => 'Encrypted JSON backups need an export password. Set it in the VAULT_ENCRYPTED_JSON_EXPORT_PASSWORD environment variable.',
@@ -253,39 +213,6 @@ trait ConfiguresVaults
      */
     protected function validationAttributes(): array
     {
-        return [
-            'server_url' => 'server URL',
-            'formats' => 'formats',
-            'formats.*' => 'format',
-            'retain_backups_count' => 'number of backups to keep',
-        ];
-    }
-
-    /**
-     * Turn validated settings into the vault's attributes, clearing the
-     * password of any format that is not enabled.
-     *
-     * @param  array<string, mixed>  $validated
-     * @return array<string, mixed>
-     */
-    protected function vaultAttributes(array $validated): array
-    {
-        $formats = array_map(BackupFormat::from(...), $validated['formats']);
-        $jsonEnabled = in_array(BackupFormat::Json, $formats, true);
-        $encryptedJsonEnabled = in_array(BackupFormat::EncryptedJson, $formats, true);
-
-        return [
-            'name' => $validated['name'],
-            'server_url' => $validated['server_url'],
-            'client_id' => $validated['client_id'],
-            'client_secret' => $validated['client_secret'],
-            'master_password' => $validated['master_password'],
-            'json_export_enabled' => $jsonEnabled,
-            'json_export_password' => $jsonEnabled && filled($validated['json_export_password'] ?? null) ? $validated['json_export_password'] : null,
-            'encrypted_json_export_enabled' => $encryptedJsonEnabled,
-            'encrypted_json_export_password' => $encryptedJsonEnabled ? $validated['encrypted_json_export_password'] : null,
-            'frequency' => BackupFrequency::from($validated['frequency']),
-            'retain_backups_count' => (int) $validated['retain_backups_count'],
-        ];
+        return VaultSettings::attributeNames();
     }
 }

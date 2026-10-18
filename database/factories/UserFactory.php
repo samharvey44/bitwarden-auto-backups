@@ -42,4 +42,27 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * Indicate that the user has set up and confirmed two-factor authentication.
+     */
+    public function withTwoFactorAuthentication(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'two_factor_secret' => encrypt('JBSWY3DPEHPK3PXP'),
+            'two_factor_recovery_codes' => encrypt(json_encode(['recovery-code-1', 'recovery-code-2'])),
+            'two_factor_confirmed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Indicate that the user has started setting up two-factor authentication
+     * but has not yet confirmed it with a code.
+     */
+    public function awaitingTwoFactorConfirmation(): static
+    {
+        return $this->withTwoFactorAuthentication()->state(fn (array $attributes) => [
+            'two_factor_confirmed_at' => null,
+        ]);
+    }
 }

@@ -19,6 +19,7 @@
     },
     "dependencies": {
         "@bitwarden/cli": "^2026.9.1",
+        "@inertiajs/vue3": "^3.9.1",
         "vue": "^3.5.44"
     }
 }

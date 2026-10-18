@@ -3,11 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Console\Commands\Concerns\FindsVaults;
-use App\Models\BackupFile;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
 
 use function Laravel\Prompts\confirm;
 
@@ -31,7 +29,7 @@ class DeleteVault extends Command
             return self::FAILURE;
         }
 
-        $files = BackupFile::query()->whereRelation('backup', 'vault_id', $vault->id)->get();
+        $fileCount = $vault->backupFiles()->count();
 
         if (! $this->option('force')) {
             if (! $this->input->isInteractive()) {
@@ -41,8 +39,8 @@ class DeleteVault extends Command
             }
 
             $consequence = $this->option('keep-files')
-                ? "Its {$files->count()} backup file(s) will be kept on disk, but the passwords stored for them will be deleted."
-                : "Its {$files->count()} backup file(s) will be deleted from disk.";
+                ? "Its {$fileCount} backup file(s) will be kept on disk, but the passwords stored for them will be deleted."
+                : "Its {$fileCount} backup file(s) will be deleted from disk.";
 
             if (! confirm(label: "Delete vault [{$vault->name}]?", default: false, hint: $consequence)) {
                 $this->components->warn('Nothing was deleted.');
@@ -51,11 +49,7 @@ class DeleteVault extends Command
             }
         }
 
-        $vault->delete();
-
-        if (! $this->option('keep-files')) {
-            $files->each(fn (BackupFile $file) => Storage::disk($file->disk)->delete($file->path));
-        }
+        $vault->deleteWithBackups(keepFiles: $this->option('keep-files'));
 
         $this->components->info("Vault [{$vault->name}] deleted.");
 

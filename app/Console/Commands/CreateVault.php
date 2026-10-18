@@ -6,6 +6,7 @@ use App\Console\Commands\Concerns\ConfiguresVaults;
 use App\Enums\BackupFormat;
 use App\Enums\BackupFrequency;
 use App\Models\User;
+use App\Services\VaultSettings;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Help;
 use Illuminate\Console\Attributes\Signature;
@@ -56,7 +57,7 @@ class CreateVault extends Command
                 label: 'What should the vault be called?',
                 placeholder: 'Personal',
                 required: true,
-                validate: ['name' => $this->vaultRules()['name']],
+                validate: ['name' => VaultSettings::rules()['name']],
             )),
             'server_url' => $this->option('server-url') ?? $this->whenInteractive($this->promptForServerUrl(...)),
             ...($this->whenInteractive(fn (): array => $this->promptForCredentials($secrets)) ?? []),
@@ -78,7 +79,7 @@ class CreateVault extends Command
 
         $validated = $this->validateInput($input, [
             'user' => ['required', 'email', Rule::exists(User::class, 'email')],
-            ...$this->vaultRules($input),
+            ...VaultSettings::rules($input),
         ], [
             'user.required' => 'The owner is required. Pass their email address with --user.',
             'user.exists' => 'No user has the email address ['.$input['user'].']. Create them with users:create first.',
@@ -90,7 +91,7 @@ class CreateVault extends Command
             return self::FAILURE;
         }
 
-        $vault = User::query()->where('email', $validated['user'])->sole()->vaults()->create($this->vaultAttributes($validated));
+        $vault = User::query()->where('email', $validated['user'])->sole()->vaults()->create(VaultSettings::attributes($validated));
 
         $this->components->info("Vault [{$vault->name}] created with ID [{$vault->id}]. Its first backup will be queued the next time the scheduler runs.");
 

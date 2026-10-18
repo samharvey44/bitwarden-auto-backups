@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'name',
@@ -75,6 +77,35 @@ class Vault extends Model
     public function backups(): HasMany
     {
         return $this->hasMany(Backup::class);
+    }
+
+    /**
+     * Get the files produced by the vault's backups.
+     *
+     * @return HasManyThrough<BackupFile, Backup, $this>
+     */
+    public function backupFiles(): HasManyThrough
+    {
+        return $this->hasManyThrough(BackupFile::class, Backup::class);
+    }
+
+    /**
+     * Delete the vault and its backup history, along with its backup files
+     * unless they should be kept.
+     *
+     * The files are only removed once the vault is gone, so a failed delete
+     * never leaves history pointing at missing files. Kept files lose the
+     * passwords stored for them.
+     */
+    public function deleteWithBackups(bool $keepFiles = false): void
+    {
+        $files = $this->backupFiles()->get();
+
+        $this->delete();
+
+        if (! $keepFiles) {
+            $files->each(fn (BackupFile $file) => Storage::disk($file->disk)->delete($file->path));
+        }
     }
 
     /**

@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 class BackupFrequencyTest extends TestCase
 {
-    #[DataProvider('nextRunTimes')]
+    #[DataProvider('nextRunTimesDataProvider')]
     public function test_returns_the_next_run_one_period_later(BackupFrequency $frequency, string $expected): void
     {
         $lastRun = CarbonImmutable::parse('2026-01-31 10:30:00');
@@ -22,7 +22,7 @@ class BackupFrequencyTest extends TestCase
     /**
      * @return array<string, array{BackupFrequency, string}>
      */
-    public static function nextRunTimes(): array
+    public static function nextRunTimesDataProvider(): array
     {
         return [
             'daily runs the next day' => [BackupFrequency::Daily, '2026-02-01 10:30:00'],

@@ -40,7 +40,7 @@ class DispatchDueBackupsTest extends TestCase
         $this->assertDatabaseMissing('backups', ['vault_id' => $withoutExports->id]);
     }
 
-    #[DataProvider('nextBackupTimes')]
+    #[DataProvider('nextBackupTimesDataProvider')]
     public function test_schedules_the_next_backup(BackupFrequency $frequency, ?string $nextBackupAt, string $expected): void
     {
         $this->travelTo('2026-10-13 12:00:00');
@@ -57,7 +57,7 @@ class DispatchDueBackupsTest extends TestCase
     /**
      * @return array<string, array{BackupFrequency, string|null, string}>
      */
-    public static function nextBackupTimes(): array
+    public static function nextBackupTimesDataProvider(): array
     {
         return [
             'first backup schedules one period from now' => [BackupFrequency::Daily, null, '2026-10-14 12:00:00'],

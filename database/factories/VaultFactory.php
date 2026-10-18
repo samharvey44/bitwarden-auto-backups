@@ -24,7 +24,7 @@ class VaultFactory extends Factory
         return [
             'user_id' => User::factory(),
             'name' => fake()->words(2, true),
-            'server_url' => null,
+            'server_url' => 'https://vault.bitwarden.com',
             'client_id' => 'user.'.fake()->uuid(),
             'client_secret' => fake()->regexify('[A-Za-z0-9]{30}'),
             'master_password' => fake()->password(16),
@@ -41,7 +41,7 @@ class VaultFactory extends Factory
 
     /**
      * Indicate that the vault's account is on a server other than Bitwarden's
-     * default US cloud, such as the EU cloud or a self-hosted server.
+     * US cloud, such as the EU cloud or a self-hosted server.
      */
     public function withServerUrl(string $serverUrl): static
     {

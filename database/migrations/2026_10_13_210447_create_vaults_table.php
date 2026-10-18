@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('name');
-            $table->string('server_url')->nullable();
+            $table->string('server_url');
             $table->text('client_id');
             $table->text('client_secret');
             $table->text('master_password');

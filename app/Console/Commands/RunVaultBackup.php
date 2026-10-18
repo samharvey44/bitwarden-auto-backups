@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Commands\Concerns\FindsVaults;
 use App\Enums\BackupStatus;
 use App\Jobs\BackupVault;
-use App\Models\Vault;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -13,16 +13,16 @@ use Illuminate\Console\Command;
 #[Description('Queue an immediate backup of a vault, outside its schedule')]
 class RunVaultBackup extends Command
 {
+    use FindsVaults;
+
     /**
      * Execute the console command.
      */
     public function handle(): int
     {
-        $vault = Vault::find($this->argument('vault'));
+        $vault = $this->findVault();
 
         if ($vault === null) {
-            $this->components->error("Vault [{$this->argument('vault')}] does not exist.");
-
             return self::FAILURE;
         }
 

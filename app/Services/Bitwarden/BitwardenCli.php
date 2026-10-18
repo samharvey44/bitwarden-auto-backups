@@ -6,6 +6,7 @@ use App\Enums\BackupFormat;
 use App\Models\Vault;
 use App\Services\Bitwarden\DTOs\VaultExport;
 use App\Services\Bitwarden\Exceptions\BitwardenCliException;
+use Closure;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Support\Facades\Process;
@@ -26,31 +27,7 @@ class BitwardenCli
      */
     public function exportVault(Vault $vault, BackupFormat ...$formats): array
     {
-        $workingDisk = Storage::disk(config('backups.working_disk'));
-        $dataDirectory = (string) Str::uuid();
-
-        $workingDisk->makeDirectory($dataDirectory);
-
-        $environment = ['BITWARDENCLI_APPDATA_DIR' => $workingDisk->path($dataDirectory)];
-
-        try {
-            if ($vault->server_url !== null) {
-                $this->run(['config', 'server', $vault->server_url], $environment);
-            }
-
-            $this->run(['login', '--apikey'], [
-                ...$environment,
-                'BW_CLIENTID' => $vault->client_id,
-                'BW_CLIENTSECRET' => $vault->client_secret,
-            ]);
-
-            $sessionKey = trim($this->run(['unlock', '--passwordenv', 'BW_PASSWORD', '--raw'], [
-                ...$environment,
-                'BW_PASSWORD' => $vault->master_password,
-            ])->output());
-
-            $sessionEnvironment = [...$environment, 'BW_SESSION' => $sessionKey];
-
+        return $this->whileUnlocked($vault, function (array $sessionEnvironment) use ($vault, $formats): array {
             $this->run(['sync'], $sessionEnvironment);
 
             $exports = [];
@@ -64,6 +41,56 @@ class BitwardenCli
             }
 
             return $exports;
+        });
+    }
+
+    /**
+     * Check that the vault's server, API key and master password work by
+     * logging in and unlocking, without exporting anything.
+     *
+     * @throws BitwardenCliException
+     */
+    public function verifyCredentials(Vault $vault): void
+    {
+        $this->whileUnlocked($vault, fn (): null => null);
+    }
+
+    /**
+     * Log in to and unlock the vault in a fresh CLI data directory, run the
+     * callback with the unlocked session's environment, then log out and
+     * remove the data directory.
+     *
+     * @template TResult
+     *
+     * @param  Closure(array<string, string>): TResult  $callback
+     * @return TResult
+     *
+     * @throws BitwardenCliException
+     */
+    private function whileUnlocked(Vault $vault, Closure $callback): mixed
+    {
+        $workingDisk = Storage::disk(config('backups.working_disk'));
+        $dataDirectory = (string) Str::uuid();
+
+        $workingDisk->makeDirectory($dataDirectory);
+
+        $environment = ['BITWARDENCLI_APPDATA_DIR' => $workingDisk->path($dataDirectory)];
+
+        try {
+            $this->run(['config', 'server', $vault->server_url], $environment);
+
+            $this->run(['login', '--apikey'], [
+                ...$environment,
+                'BW_CLIENTID' => $vault->client_id,
+                'BW_CLIENTSECRET' => $vault->client_secret,
+            ]);
+
+            $sessionKey = trim($this->run(['unlock', '--passwordenv', 'BW_PASSWORD', '--raw'], [
+                ...$environment,
+                'BW_PASSWORD' => $vault->master_password,
+            ])->output());
+
+            return $callback([...$environment, 'BW_SESSION' => $sessionKey]);
         } finally {
             $this->logOut($environment);
 

@@ -17,4 +17,15 @@ enum BackupFormat: string
      * Bitwarden's password-protected encrypted JSON, importable into any Bitwarden account.
      */
     case EncryptedJson = 'encrypted_json';
+
+    /**
+     * Get the format's human-readable name.
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Json => 'JSON',
+            self::EncryptedJson => 'Encrypted JSON',
+        };
+    }
 }

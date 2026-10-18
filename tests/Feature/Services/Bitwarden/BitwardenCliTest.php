@@ -28,7 +28,7 @@ class BitwardenCliTest extends TestCase
         config(['backups.cli.path' => '/opt/bw']);
     }
 
-    public function test_runs_login_unlock_sync_export_and_logout_in_order(): void
+    public function test_configures_the_server_then_logs_in_unlocks_syncs_exports_and_logs_out_in_order(): void
     {
         Storage::fake('bitwarden-cli');
         $vault = Vault::factory()->create();
@@ -37,6 +37,7 @@ class BitwardenCliTest extends TestCase
         app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
 
         $this->assertSame([
+            ['/opt/bw', '--nointeraction', 'config', 'server', 'https://vault.bitwarden.com'],
             ['/opt/bw', '--nointeraction', 'login', '--apikey'],
             ['/opt/bw', '--nointeraction', 'unlock', '--passwordenv', 'BW_PASSWORD', '--raw'],
             ['/opt/bw', '--nointeraction', 'sync'],
@@ -58,6 +59,7 @@ class BitwardenCliTest extends TestCase
         );
 
         $this->assertSame([
+            ['/opt/bw', '--nointeraction', 'config', 'server', 'https://vault.bitwarden.com'],
             ['/opt/bw', '--nointeraction', 'login', '--apikey'],
             ['/opt/bw', '--nointeraction', 'unlock', '--passwordenv', 'BW_PASSWORD', '--raw'],
             ['/opt/bw', '--nointeraction', 'sync'],
@@ -101,7 +103,19 @@ class BitwardenCliTest extends TestCase
         $this->assertSame('logout', $processes->last()->command[2]);
     }
 
-    public function test_configures_the_server_url_before_logging_in(): void
+    public function test_verifying_credentials_logs_in_and_unlocks_without_syncing_or_exporting(): void
+    {
+        Storage::fake('bitwarden-cli');
+        $vault = Vault::factory()->create();
+        $processes = $this->fakeCli();
+
+        app(BitwardenCli::class)->verifyCredentials($vault);
+
+        $this->assertSame(['config', 'login', 'unlock', 'logout'], $processes->pluck('command.2')->all());
+        $this->assertSame([], Storage::disk('bitwarden-cli')->directories());
+    }
+
+    public function test_configures_a_non_us_server_url_before_logging_in(): void
     {
         Storage::fake('bitwarden-cli');
         $vault = Vault::factory()->withServerUrl('https://vault.bitwarden.eu')->create();
@@ -176,7 +190,7 @@ class BitwardenCliTest extends TestCase
             );
         }
 
-        $this->assertSame(['login', 'logout'], $processes->pluck('command.2')->all());
+        $this->assertSame(['config', 'login', 'logout'], $processes->pluck('command.2')->all());
         $this->assertSame([], Storage::disk('bitwarden-cli')->directories());
     }
 

@@ -11,6 +11,7 @@ use App\Services\Bitwarden\BitwardenCli;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\Backoff;
+use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
 use Illuminate\Queue\Attributes\Timeout;
 use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ use ZipArchive;
 #[Tries(3)]
 #[Backoff([60, 600])]
 #[Timeout(360)]
+#[DeleteWhenMissingModels]
 class BackupVault implements ShouldQueue
 {
     use Queueable;

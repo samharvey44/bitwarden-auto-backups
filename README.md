@@ -118,6 +118,49 @@ sail logs -f queue       # Queued backup jobs
 sail logs -f scheduler   # Backups being queued as they become due
 ```
 
+## Command-line setup
+
+Everything needed to set up and run backups is available as Artisan commands, so the application can be used without the web interface. Each command prompts for anything it needs, and `--help` lists its options.
+
+```bash
+sail artisan users:create          # Create a user to own vaults
+sail artisan vaults:create         # Add a Bitwarden vault to back up
+sail artisan vaults:verify <id>    # Check a vault's credentials work, without backing it up
+sail artisan vaults:list           # List vaults and their schedules
+sail artisan vaults:edit <id>      # Change a vault's settings
+sail artisan vaults:delete <id>    # Delete a vault, its backup history and its backup files
+sail artisan backups:run <id>      # Queue a backup now, outside the schedule
+sail artisan backups:list <id>     # List a vault's recent backups, their files and any errors
+```
+
+A vault needs its server's URL (`https://vault.bitwarden.com` for the US cloud, `https://vault.bitwarden.eu` for the EU cloud, or your self-hosted server's), a [personal API key](https://bitwarden.com/help/personal-api-key/) (Settings › Security › Keys › View API key in the web vault) and the account's master password. Backups can be saved in either or both of these formats:
+
+- **Encrypted JSON**, protected by an export password and importable into any Bitwarden account.
+- **JSON**, unencrypted and importable into other password managers. It is saved inside an AES-256 encrypted ZIP when given a password, or as a plain JSON file when not.
+
+New vaults are backed up the next time the scheduler runs, then on their schedule.
+
+### Running without prompts
+
+Pass `--no-interaction` and give settings as options. Secrets are never accepted as options, as they would be left in your shell history, so they are read from environment variables instead:
+
+| Variable | Used by | Value |
+| --- | --- | --- |
+| `USER_PASSWORD` | `users:create` | The user's password |
+| `VAULT_CLIENT_ID` | `vaults:create`, `vaults:edit` | The API key's `client_id` |
+| `VAULT_CLIENT_SECRET` | `vaults:create`, `vaults:edit` | The API key's `client_secret` |
+| `VAULT_MASTER_PASSWORD` | `vaults:create`, `vaults:edit` | The master password |
+| `VAULT_ENCRYPTED_JSON_EXPORT_PASSWORD` | `vaults:create`, `vaults:edit` | The password encrypted JSON backups are protected with |
+| `VAULT_JSON_EXPORT_PASSWORD` | `vaults:create`, `vaults:edit` | The password JSON backups are zipped with. Leave unset for plain JSON |
+
+`sail artisan` does not pass your shell's environment variables into the container, so set them inside it instead:
+
+```bash
+sail shell
+read -rs VAULT_CLIENT_SECRET && export VAULT_CLIENT_SECRET   # Repeat for each secret
+php artisan vaults:create --no-interaction --user=you@example.com --name=Personal --server-url=https://vault.bitwarden.com --format=encrypted_json
+```
+
 ## Services
 
 | Service | URL / Host | Notes |

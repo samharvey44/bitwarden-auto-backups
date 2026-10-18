@@ -38,6 +38,11 @@ class VaultResource extends JsonResource
             'retain_backups_count' => $this->retain_backups_count,
             'last_backed_up_at' => $this->last_backed_up_at?->toIso8601ZuluString(),
             'next_backup_at' => $this->next_backup_at?->toIso8601ZuluString(),
+            'latest_backup' => $this->whenLoaded('latestBackup', fn (): array => [
+                'status' => $this->latestBackup->status->value,
+                'status_label' => $this->latestBackup->status->label(),
+                'completed_at' => $this->latestBackup->completed_at?->toIso8601ZuluString(),
+            ]),
         ];
     }
 }

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Enums\BackupFormat;
 use App\Enums\BackupStatus;
+use App\Events\BackupFailed;
 use App\Events\BackupSucceeded;
 use App\Models\Backup;
 use App\Models\Vault;
@@ -115,7 +116,7 @@ class BackupVault implements ShouldQueue
     }
 
     /**
-     * Record the backup as failed for the given reason.
+     * Record the backup as failed for the given reason, and announce it.
      */
     private function markFailed(?string $reason): void
     {
@@ -124,6 +125,8 @@ class BackupVault implements ShouldQueue
             'error' => $reason,
             'completed_at' => now(),
         ]);
+
+        BackupFailed::dispatch($this->backup);
     }
 
     /**

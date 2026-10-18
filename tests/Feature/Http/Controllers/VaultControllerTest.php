@@ -58,7 +58,26 @@ class VaultControllerTest extends TestCase
                     'retain_backups_count' => 30,
                     'last_backed_up_at' => '2026-10-10T09:00:00Z',
                     'next_backup_at' => '2026-10-17T09:00:00Z',
+                    'latest_backup' => null,
                 ]));
+    }
+
+    public function test_lists_each_vaults_latest_backup_whatever_its_status(): void
+    {
+        $user = User::factory()->create();
+        $vault = Vault::factory()->for($user)->create();
+        $this->travelTo('2026-10-12 12:00:00');
+        Backup::factory()->for($vault)->succeeded()->create();
+        $this->travelTo('2026-10-13 12:00:00');
+        Backup::factory()->for($vault)->failed()->create();
+
+        $this->actingAs($user)
+            ->get('/vaults')
+            ->assertInertia(fn (Assert $page) => $page->where('vaults.0.latest_backup', [
+                'status' => 'failed',
+                'status_label' => 'Failed',
+                'completed_at' => '2026-10-13T12:00:00Z',
+            ]));
     }
 
     public function test_never_sends_the_vaults_or_its_files_secrets_to_the_browser(): void

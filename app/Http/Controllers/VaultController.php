@@ -26,7 +26,7 @@ class VaultController extends Controller
     public function index(Request $request): Response
     {
         return Inertia::render('vaults/Index', [
-            'vaults' => VaultResource::collection($request->user()->vaults()->orderBy('name')->orderBy('id')->get())->resolve(),
+            'vaults' => VaultResource::collection($request->user()->vaults()->with('latestBackup')->orderBy('name')->orderBy('id')->get())->resolve(),
         ]);
     }
 

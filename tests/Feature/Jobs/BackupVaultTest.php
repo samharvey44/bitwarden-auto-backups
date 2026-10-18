@@ -4,6 +4,7 @@ namespace Tests\Feature\Jobs;
 
 use App\Enums\BackupFormat;
 use App\Enums\BackupStatus;
+use App\Events\BackupFailed;
 use App\Events\BackupSucceeded;
 use App\Jobs\BackupVault;
 use App\Models\Backup;
@@ -159,7 +160,7 @@ class BackupVaultTest extends TestCase
         $this->mock(BitwardenCli::class, function (MockInterface $mock): void {
             $mock->shouldReceive('exportVault')->once()->andThrow(new BitwardenCliException('Unlock failed.'));
         });
-        Event::fake([BackupSucceeded::class]);
+        Event::fake([BackupSucceeded::class, BackupFailed::class]);
 
         try {
             $this->runJob($backup);
@@ -172,10 +173,12 @@ class BackupVaultTest extends TestCase
         $this->assertDatabaseCount('backup_files', 0);
         $this->assertSame(BackupStatus::Running, $backup->refresh()->status);
         Event::assertNotDispatched(BackupSucceeded::class);
+        Event::assertNotDispatched(BackupFailed::class);
     }
 
     public function test_fails_without_exporting_when_no_formats_are_enabled(): void
     {
+        Event::fake([BackupFailed::class]);
         $backup = Backup::factory()->for(Vault::factory()->withoutExports())->create();
         $this->mock(BitwardenCli::class, function (MockInterface $mock): void {
             $mock->shouldNotReceive('exportVault');
@@ -186,6 +189,7 @@ class BackupVaultTest extends TestCase
         $backup->refresh();
         $this->assertSame(BackupStatus::Failed, $backup->status);
         $this->assertSame('The vault has no backup formats enabled.', $backup->error);
+        Event::assertDispatched(BackupFailed::class, fn (BackupFailed $event): bool => $event->backup->is($backup));
     }
 
     public function test_fails_without_exporting_when_encrypted_json_has_no_password(): void
@@ -205,6 +209,7 @@ class BackupVaultTest extends TestCase
     public function test_marks_the_backup_failed_with_the_reason_once_retries_are_exhausted(): void
     {
         $this->travelTo('2026-10-13 12:00:00');
+        Event::fake([BackupFailed::class]);
         $backup = Backup::factory()->create(['status' => BackupStatus::Running]);
 
         (new BackupVault($backup))->failed(new BitwardenCliException('Bitwarden CLI command [unlock] failed with exit code 1: Invalid master password.'));
@@ -213,6 +218,7 @@ class BackupVaultTest extends TestCase
         $this->assertSame(BackupStatus::Failed, $backup->status);
         $this->assertSame('Bitwarden CLI command [unlock] failed with exit code 1: Invalid master password.', $backup->error);
         $this->assertSame('2026-10-13 12:00:00', $backup->completed_at->toDateTimeString());
+        Event::assertDispatched(BackupFailed::class, fn (BackupFailed $event): bool => $event->backup->is($backup));
     }
 
     /**

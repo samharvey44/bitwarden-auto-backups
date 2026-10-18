@@ -140,6 +140,11 @@ A vault needs its server's URL (`https://vault.bitwarden.com` for the US cloud, 
 
 New vaults are backed up the next time the scheduler runs, then on their schedule.
 
+> [!IMPORTANT]
+> Backups are made with the Bitwarden CLI's `export` command, so they contain the same as an export from Bitwarden itself. They **do not include file attachments**, or items owned by **organizations** you are a member of, only your individual vault.
+
+When a backup fails, the vault's owner is notified. To avoid a notification for every failed run, they are only notified again once one of the vault's backups has succeeded. Notifications are currently sent by email, using the `MAIL_*` settings in `.env`, so set these up to receive them, including when using only the command line.
+
 Users are only created with `users:create` by default. To let people create their own accounts from a register page in the web interface, set `REGISTRATION_ENABLED=true`.
 
 ### Running without prompts

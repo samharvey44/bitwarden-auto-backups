@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
@@ -79,6 +80,16 @@ class Vault extends Model
     public function backups(): HasMany
     {
         return $this->hasMany(Backup::class);
+    }
+
+    /**
+     * Get the vault's most recent backup, whatever its status.
+     *
+     * @return HasOne<Backup, $this>
+     */
+    public function latestBackup(): HasOne
+    {
+        return $this->hasOne(Backup::class)->latestOfMany();
     }
 
     /**

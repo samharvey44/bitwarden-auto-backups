@@ -1,6 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import AppButton from '../../components/AppButton.vue';
+import BackupStatusBadge from '../../components/BackupStatusBadge.vue';
 import { formatDateTime } from '../../lib/formatDateTime';
 import { formatLabels, nextBackupLabel } from '../../lib/vaults';
 import AppLayout from '../../layouts/AppLayout.vue';
@@ -47,9 +48,16 @@ defineProps({
                         </span>
                     </div>
 
-                    <div class="flex flex-col text-sm">
-                        <span class="text-zinc-500 dark:text-zinc-400">Last backup</span>
-                        <span>{{ formatDateTime(vault.last_backed_up_at) ?? 'Never' }}</span>
+                    <div class="flex flex-col items-start gap-1 text-sm">
+                        <span class="text-zinc-500 dark:text-zinc-400">Latest backup</span>
+                        <span v-if="!vault.latest_backup">Never</span>
+                        <span v-else-if="vault.latest_backup.status === 'succeeded'">{{ formatDateTime(vault.latest_backup.completed_at) }}</span>
+                        <template v-else>
+                            <BackupStatusBadge :status="vault.latest_backup.status" :label="vault.latest_backup.status_label" />
+                            <span v-if="vault.latest_backup.status === 'failed'" class="text-xs text-zinc-500 dark:text-zinc-400">
+                                Last succeeded: {{ formatDateTime(vault.last_backed_up_at) ?? 'never' }}
+                            </span>
+                        </template>
                     </div>
 
                     <div class="flex flex-col text-sm">

@@ -3,7 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Services\VaultSettings;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreVaultRequest extends FormRequest
 {
@@ -34,6 +36,22 @@ class StoreVaultRequest extends FormRequest
         $rules['json_export_password'][] = 'confirmed';
 
         return $rules;
+    }
+
+    /**
+     * Get the check that the user hasn't reached their vault limit.
+     *
+     * @return list<Closure(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if (! $this->user()->canAddVault()) {
+                    $validator->errors()->add('vaults', 'You can\'t add more than '.config('backups.max_vaults_per_user').' vaults.');
+                }
+            },
+        ];
     }
 
     /**

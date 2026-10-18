@@ -7,6 +7,7 @@ use App\Enums\BackupFormat;
 use App\Enums\BackupFrequency;
 use App\Models\User;
 use App\Services\VaultSettings;
+use Closure;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Help;
 use Illuminate\Console\Attributes\Signature;
@@ -78,7 +79,17 @@ class CreateVault extends Command
         $input['retain_backups_count'] = $this->option('retain') ?? $this->whenInteractive($this->promptForRetainBackupsCount(...)) ?? 30;
 
         $validated = $this->validateInput($input, [
-            'user' => ['required', 'email', Rule::exists(User::class, 'email')],
+            'user' => [
+                'bail',
+                'required',
+                'email',
+                Rule::exists(User::class, 'email'),
+                function (string $attribute, string $email, Closure $fail): void {
+                    if (! User::query()->where('email', $email)->sole()->canAddVault()) {
+                        $fail('User ['.$email.'] already has the maximum of '.config('backups.max_vaults_per_user').' vaults. Raise MAX_VAULTS_PER_USER, or set it to 0, to add more.');
+                    }
+                },
+            ],
             ...VaultSettings::rules($input),
         ], [
             'user.required' => 'The owner is required. Pass their email address with --user.',

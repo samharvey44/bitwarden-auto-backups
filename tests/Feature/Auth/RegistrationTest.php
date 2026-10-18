@@ -45,6 +45,20 @@ class RegistrationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_limits_registrations_to_five_an_hour_from_each_address(): void
+    {
+        config(['fortify.registration_enabled' => true]);
+
+        foreach (range(1, 5) as $attempt) {
+            $this->post('/register', $this->registration(['email' => "sam{$attempt}@example.com"]));
+            auth()->logout();
+        }
+
+        $this->post('/register', $this->registration(['email' => 'sam6@example.com']))->assertTooManyRequests();
+
+        $this->assertDatabaseCount('users', 5);
+    }
+
     /**
      * @param  array<string, string>  $overrides
      */

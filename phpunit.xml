@@ -22,6 +22,7 @@
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BACKUP_DISK" value="backups"/>
         <env name="REGISTRATION_ENABLED" value="false"/>
+        <env name="MAX_VAULTS_PER_USER" value="10"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>

@@ -1,5 +1,6 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3';
+import AppAlert from '../../components/AppAlert.vue';
 import VaultForm from '../../components/VaultForm.vue';
 import AppLayout from '../../layouts/AppLayout.vue';
 import vaultRoutes from '../../routes/vaults';
@@ -33,6 +34,8 @@ const form = useForm({
 
 <template>
     <AppLayout title="Add a vault" description="Back up a Bitwarden account on a schedule." :back="{ href: vaultRoutes.index(), label: 'Vaults' }">
+        <AppAlert v-if="form.errors.vaults" tone="error">{{ form.errors.vaults }}</AppAlert>
+
         <VaultForm
             :form="form"
             :frequencies="frequencies"

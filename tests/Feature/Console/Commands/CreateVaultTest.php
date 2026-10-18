@@ -205,6 +205,19 @@ class CreateVaultTest extends TestCase
         $this->assertDatabaseCount('vaults', 0);
     }
 
+    public function test_fails_when_the_owner_has_reached_the_vault_limit(): void
+    {
+        config(['backups.max_vaults_per_user' => 1]);
+        Vault::factory()->for(User::factory()->create(['email' => 'sam@example.com']))->create();
+        $this->withProcessEnvironment($this->secrets());
+
+        $this->artisan('vaults:create', ['--user' => 'sam@example.com', '--name' => 'Personal', '--server-url' => 'https://vault.bitwarden.com', '--no-interaction' => true])
+            ->expectsOutputToContain('User [sam@example.com] already has the maximum of 1 vaults. Raise MAX_VAULTS_PER_USER, or set it to 0, to add more.')
+            ->assertFailed();
+
+        $this->assertDatabaseCount('vaults', 1);
+    }
+
     public function test_fails_for_an_owner_that_does_not_exist(): void
     {
         $this->withProcessEnvironment($this->secrets());

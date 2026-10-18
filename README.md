@@ -145,7 +145,10 @@ New vaults are backed up the next time the scheduler runs, then on their schedul
 
 When a backup fails, the vault's owner is notified. To avoid a notification for every failed run, they are only notified again once one of the vault's backups has succeeded. Notifications are currently sent by email, using the `MAIL_*` settings in `.env`, so set these up to receive them, including when using only the command line.
 
-Users are only created with `users:create` by default. To let people create their own accounts from a register page in the web interface, set `REGISTRATION_ENABLED=true`.
+Users are only created with `users:create` by default. To let people create their own accounts from a register page in the web interface, set `REGISTRATION_ENABLED=true`. Registrations are limited to five an hour from each IP address, and each user can add up to 10 vaults, which `MAX_VAULTS_PER_USER` changes (`0` for no limit).
+
+> [!WARNING]
+> Every vault makes this server connect to the Bitwarden server URL it is given. If you enable registration on a publicly reachable instance, anyone who signs up can point a vault at addresses on your private network. Block the queue worker from connecting to private, loopback and link-local addresses at the network level, for example with a firewall rule or an outbound proxy such as [smokescreen](https://github.com/stripe/smokescreen).
 
 ### Running without prompts
 

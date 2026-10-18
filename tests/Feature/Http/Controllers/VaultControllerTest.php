@@ -144,6 +144,30 @@ class VaultControllerTest extends TestCase
         $this->assertNull($vault->next_backup_at);
     }
 
+    public function test_cannot_add_more_vaults_than_the_limit(): void
+    {
+        config(['backups.max_vaults_per_user' => 2]);
+        $user = User::factory()->create();
+        Vault::factory()->for($user)->count(2)->create();
+
+        $this->actingAs($user)
+            ->post('/vaults', $this->validSettings())
+            ->assertSessionHasErrors(['vaults' => "You can't add more than 2 vaults."]);
+
+        $this->assertSame(2, $user->vaults()->count());
+    }
+
+    public function test_a_limit_of_zero_allows_any_number_of_vaults(): void
+    {
+        config(['backups.max_vaults_per_user' => 0]);
+        $user = User::factory()->create();
+        Vault::factory()->for($user)->count(3)->create();
+
+        $this->actingAs($user)->post('/vaults', $this->validSettings())->assertSessionHasNoErrors();
+
+        $this->assertSame(4, $user->vaults()->count());
+    }
+
     public function test_a_json_backup_without_a_zip_password_is_saved_as_plain_json(): void
     {
         $user = User::factory()->create();

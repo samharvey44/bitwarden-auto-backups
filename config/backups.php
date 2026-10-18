@@ -19,8 +19,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | The local disk used as scratch space for the Bitwarden CLI's per-run data
-    | directories and for exports before they are moved to the backup disk.
-    | Nothing is kept here once a backup finishes.
+    | directories and for encrypted ZIP archives while they are being built.
+    | Exports themselves are never written here, and nothing is kept once a
+    | backup finishes.
     |
     */
 

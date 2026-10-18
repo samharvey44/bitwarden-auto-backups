@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Exceptions;
+namespace App\Services\Bitwarden\Exceptions;
 
+use App\Enums\BackupFormat;
 use Exception;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Support\Str;
@@ -12,12 +13,13 @@ class BitwardenCliException extends Exception
      * Create an exception for a CLI command that exited unsuccessfully.
      *
      * Only the command name is included, never its arguments, because the
-     * arguments can contain the export password.
+     * arguments can contain the export password. The standard output is only
+     * used as a fallback when it is not sensitive, such as a vault export.
      */
-    public static function commandFailed(string $command, ProcessResult $result): self
+    public static function commandFailed(string $command, ProcessResult $result, bool $outputIsSensitive = false): self
     {
         $output = self::withoutDataDirectoryNotices($result->errorOutput())
-            ?: self::withoutDataDirectoryNotices($result->output());
+            ?: ($outputIsSensitive ? '' : self::withoutDataDirectoryNotices($result->output()));
 
         return new self(sprintf(
             'Bitwarden CLI command [%s] failed with exit code %d: %s',
@@ -25,6 +27,27 @@ class BitwardenCliException extends Exception
             $result->exitCode(),
             Str::limit($output ?: 'no output', 500),
         ));
+    }
+
+    /**
+     * Create an exception for a CLI command that ran past its timeout.
+     */
+    public static function commandTimedOut(string $command): self
+    {
+        return new self(sprintf(
+            'Bitwarden CLI command [%s] timed out after %d seconds.',
+            $command,
+            config('backups.cli.timeout'),
+        ));
+    }
+
+    /**
+     * Create an exception for an export command that succeeded without
+     * writing anything to standard output.
+     */
+    public static function emptyExport(BackupFormat $format): self
+    {
+        return new self("Bitwarden CLI command [export] returned an empty {$format->value} export.");
     }
 
     /**

@@ -1,17 +1,20 @@
 <?php
 
-namespace Tests\Feature\Services;
+namespace Tests\Feature\Services\Bitwarden;
 
 use App\Enums\BackupFormat;
-use App\Exceptions\BitwardenCliException;
 use App\Models\Vault;
-use App\Services\BitwardenCli;
-use App\Services\VaultExport;
+use App\Services\Bitwarden\BitwardenCli;
+use App\Services\Bitwarden\DTOs\VaultExport;
+use App\Services\Bitwarden\Exceptions\BitwardenCliException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Process\Exception\ProcessTimedOutException as SymfonyTimeoutException;
+use Symfony\Component\Process\Process as SymfonyProcess;
 use Tests\TestCase;
 
 class BitwardenCliTest extends TestCase
@@ -31,13 +34,13 @@ class BitwardenCliTest extends TestCase
         $vault = Vault::factory()->create();
         $processes = $this->fakeCli();
 
-        app(BitwardenCli::class)->exportVault($vault, new VaultExport(BackupFormat::EncryptedJson, '/exports/vault.json'));
+        app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
 
         $this->assertSame([
             ['/opt/bw', '--nointeraction', 'login', '--apikey'],
             ['/opt/bw', '--nointeraction', 'unlock', '--passwordenv', 'BW_PASSWORD', '--raw'],
             ['/opt/bw', '--nointeraction', 'sync'],
-            ['/opt/bw', '--nointeraction', 'export', '--format', 'encrypted_json', '--password', $vault->encrypted_json_export_password, '--output', '/exports/vault.json'],
+            ['/opt/bw', '--nointeraction', 'export', '--format', 'encrypted_json', '--password', $vault->encrypted_json_export_password, '--raw'],
             ['/opt/bw', '--nointeraction', 'logout'],
         ], $processes->pluck('command')->all());
     }
@@ -50,18 +53,52 @@ class BitwardenCliTest extends TestCase
 
         app(BitwardenCli::class)->exportVault(
             $vault,
-            new VaultExport(BackupFormat::Json, '/exports/vault.json'),
-            new VaultExport(BackupFormat::EncryptedJson, '/exports/vault.encrypted.json'),
+            BackupFormat::Json,
+            BackupFormat::EncryptedJson,
         );
 
         $this->assertSame([
             ['/opt/bw', '--nointeraction', 'login', '--apikey'],
             ['/opt/bw', '--nointeraction', 'unlock', '--passwordenv', 'BW_PASSWORD', '--raw'],
             ['/opt/bw', '--nointeraction', 'sync'],
-            ['/opt/bw', '--nointeraction', 'export', '--format', 'json', '--output', '/exports/vault.json'],
-            ['/opt/bw', '--nointeraction', 'export', '--format', 'encrypted_json', '--password', $vault->encrypted_json_export_password, '--output', '/exports/vault.encrypted.json'],
+            ['/opt/bw', '--nointeraction', 'export', '--format', 'json', '--raw'],
+            ['/opt/bw', '--nointeraction', 'export', '--format', 'encrypted_json', '--password', $vault->encrypted_json_export_password, '--raw'],
             ['/opt/bw', '--nointeraction', 'logout'],
         ], $processes->pluck('command')->all());
+    }
+
+    public function test_returns_each_export_read_from_standard_output(): void
+    {
+        Storage::fake('bitwarden-cli');
+        $vault = Vault::factory()->withJsonExport()->create();
+        $this->fakeCli();
+
+        $exports = app(BitwardenCli::class)->exportVault($vault, BackupFormat::Json, BackupFormat::EncryptedJson);
+
+        // Faked process output always ends in a newline.
+        $this->assertEquals([
+            new VaultExport(BackupFormat::Json, "{\"format\":\"json\"}\n"),
+            new VaultExport(BackupFormat::EncryptedJson, "{\"format\":\"encrypted_json\"}\n"),
+        ], $exports);
+        $this->assertSame([], Storage::disk('bitwarden-cli')->allFiles());
+    }
+
+    public function test_empty_export_throws_and_still_logs_out(): void
+    {
+        Storage::fake('bitwarden-cli');
+        $vault = Vault::factory()->create();
+        $processes = $this->fakeCli(failing: [
+            'export' => Process::result(),
+        ]);
+
+        try {
+            app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
+            $this->fail('Expected the export to throw a BitwardenCliException.');
+        } catch (BitwardenCliException $exception) {
+            $this->assertSame('Bitwarden CLI command [export] returned an empty encrypted_json export.', $exception->getMessage());
+        }
+
+        $this->assertSame('logout', $processes->last()->command[2]);
     }
 
     public function test_configures_the_server_url_before_logging_in(): void
@@ -70,7 +107,7 @@ class BitwardenCliTest extends TestCase
         $vault = Vault::factory()->withServerUrl('https://vault.bitwarden.eu')->create();
         $processes = $this->fakeCli();
 
-        app(BitwardenCli::class)->exportVault($vault, new VaultExport(BackupFormat::EncryptedJson, '/exports/vault.json'));
+        app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
 
         $this->assertSame(
             [['/opt/bw', '--nointeraction', 'config', 'server', 'https://vault.bitwarden.eu'], ['/opt/bw', '--nointeraction', 'login', '--apikey']],
@@ -84,7 +121,7 @@ class BitwardenCliTest extends TestCase
         $vault = Vault::factory()->create();
         $this->fakeCli(sessionKey: 'session-key-123');
 
-        app(BitwardenCli::class)->exportVault($vault, new VaultExport(BackupFormat::EncryptedJson, '/exports/vault.json'));
+        app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
 
         Process::assertRan(fn (PendingProcess $process): bool => $process->command[2] === 'login'
             && $process->environment['BW_CLIENTID'] === $vault->client_id
@@ -101,7 +138,7 @@ class BitwardenCliTest extends TestCase
         $vault = Vault::factory()->create();
         $this->fakeCli();
 
-        app(BitwardenCli::class)->exportVault($vault, new VaultExport(BackupFormat::EncryptedJson, '/exports/vault.json'));
+        app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
 
         Process::assertDidntRun(fn (PendingProcess $process): bool => in_array($vault->client_secret, $process->command, true)
             || in_array($vault->master_password, $process->command, true));
@@ -113,7 +150,7 @@ class BitwardenCliTest extends TestCase
         $vault = Vault::factory()->create();
         $processes = $this->fakeCli();
 
-        app(BitwardenCli::class)->exportVault($vault, new VaultExport(BackupFormat::EncryptedJson, '/exports/vault.json'));
+        app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
 
         $dataDirectories = $processes->pluck('environment.BITWARDENCLI_APPDATA_DIR')->unique();
         $this->assertCount(1, $dataDirectories);
@@ -130,7 +167,7 @@ class BitwardenCliTest extends TestCase
         ]);
 
         try {
-            app(BitwardenCli::class)->exportVault($vault, new VaultExport(BackupFormat::EncryptedJson, '/exports/vault.json'));
+            app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
             $this->fail('Expected the export to throw a BitwardenCliException.');
         } catch (BitwardenCliException $exception) {
             $this->assertSame(
@@ -155,7 +192,7 @@ class BitwardenCliTest extends TestCase
         ]);
 
         try {
-            app(BitwardenCli::class)->exportVault($vault, new VaultExport(BackupFormat::EncryptedJson, '/exports/vault.json'));
+            app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
             $this->fail('Expected the export to throw a BitwardenCliException.');
         } catch (BitwardenCliException $exception) {
             $this->assertSame(
@@ -174,17 +211,58 @@ class BitwardenCliTest extends TestCase
         ]);
 
         try {
-            app(BitwardenCli::class)->exportVault($vault, new VaultExport(BackupFormat::EncryptedJson, '/exports/vault.json'));
+            app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
             $this->fail('Expected the export to throw a BitwardenCliException.');
         } catch (BitwardenCliException $exception) {
             $this->assertStringNotContainsString($vault->encrypted_json_export_password, $exception->getMessage());
         }
     }
 
+    public function test_timed_out_export_error_does_not_reveal_the_export_password(): void
+    {
+        Storage::fake('bitwarden-cli');
+        config(['backups.cli.timeout' => 60]);
+        $vault = Vault::factory()->create();
+        $processes = $this->fakeCli(failing: [
+            'export' => fn (PendingProcess $process) => throw ProcessTimedOutException::make(
+                new SymfonyTimeoutException(new SymfonyProcess($process->command), SymfonyTimeoutException::TYPE_GENERAL),
+                Process::result(),
+            ),
+        ]);
+
+        try {
+            app(BitwardenCli::class)->exportVault($vault, BackupFormat::EncryptedJson);
+            $this->fail('Expected the export to throw a BitwardenCliException.');
+        } catch (BitwardenCliException $exception) {
+            $this->assertSame('Bitwarden CLI command [export] timed out after 60 seconds.', $exception->getMessage());
+            $this->assertNull($exception->getPrevious());
+            $this->assertStringNotContainsString($vault->encrypted_json_export_password, (string) $exception);
+        }
+
+        $this->assertSame('logout', $processes->last()->command[2]);
+    }
+
+    public function test_failed_export_error_never_falls_back_to_the_exported_data(): void
+    {
+        Storage::fake('bitwarden-cli');
+        $vault = Vault::factory()->withJsonExport()->create();
+        $this->fakeCli(failing: [
+            'export' => Process::result(output: '{"items":[{"login":{"password":"hunter2"}}]}', exitCode: 1),
+        ]);
+
+        try {
+            app(BitwardenCli::class)->exportVault($vault, BackupFormat::Json);
+            $this->fail('Expected the export to throw a BitwardenCliException.');
+        } catch (BitwardenCliException $exception) {
+            $this->assertSame('Bitwarden CLI command [export] failed with exit code 1: no output', $exception->getMessage());
+        }
+    }
+
     /**
      * Fake every CLI command, recording each process in the order it runs.
+     * Exports write a small JSON document naming their format to standard output.
      *
-     * @param  array<string, mixed>  $failing  Fake results keyed by CLI subcommand.
+     * @param  array<string, mixed>  $failing  Fake results, or closures that build them, keyed by CLI subcommand.
      * @return Collection<int, PendingProcess>
      */
     private function fakeCli(string $sessionKey = 'session-key', array $failing = []): Collection
@@ -196,8 +274,13 @@ class BitwardenCliTest extends TestCase
             $processes->push(clone $process);
             $subcommand = $process->command[2];
 
-            return $failing[$subcommand] ?? match ($subcommand) {
+            if (array_key_exists($subcommand, $failing)) {
+                return value($failing[$subcommand], $process);
+            }
+
+            return match ($subcommand) {
                 'unlock' => Process::result($sessionKey),
+                'export' => Process::result(json_encode(['format' => $process->command[4]])),
                 default => Process::result(),
             };
         });

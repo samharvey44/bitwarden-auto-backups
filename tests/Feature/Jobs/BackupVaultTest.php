@@ -5,12 +5,12 @@ namespace Tests\Feature\Jobs;
 use App\Enums\BackupFormat;
 use App\Enums\BackupStatus;
 use App\Events\BackupSucceeded;
-use App\Exceptions\BitwardenCliException;
 use App\Jobs\BackupVault;
 use App\Models\Backup;
 use App\Models\Vault;
-use App\Services\BitwardenCli;
-use App\Services\VaultExport;
+use App\Services\Bitwarden\BitwardenCli;
+use App\Services\Bitwarden\DTOs\VaultExport;
+use App\Services\Bitwarden\Exceptions\BitwardenCliException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
@@ -132,7 +132,7 @@ class BackupVaultTest extends TestCase
         $this->assertSame('original-secret', $backup->files()->sole()->password);
     }
 
-    public function test_removes_every_local_export_once_stored(): void
+    public function test_leaves_nothing_on_the_working_disk(): void
     {
         Storage::fake('backups');
         Storage::fake('bitwarden-cli');
@@ -223,19 +223,18 @@ class BackupVaultTest extends TestCase
     }
 
     /**
-     * Replace the Bitwarden CLI with one that writes a small JSON document,
-     * naming its format, to each requested destination.
+     * Replace the Bitwarden CLI with one that exports a small JSON document
+     * naming each requested format.
      */
     private function fakeExport(): void
     {
         $this->mock(BitwardenCli::class, function (MockInterface $mock): void {
             $mock->shouldReceive('exportVault')
                 ->once()
-                ->andReturnUsing(function (Vault $vault, VaultExport ...$exports): void {
-                    foreach ($exports as $export) {
-                        file_put_contents($export->path, "{\"format\":\"{$export->format->value}\"}");
-                    }
-                });
+                ->andReturnUsing(fn (Vault $vault, BackupFormat ...$formats): array => array_map(
+                    fn (BackupFormat $format): VaultExport => new VaultExport($format, "{\"format\":\"{$format->value}\"}"),
+                    $formats,
+                ));
         });
     }
 

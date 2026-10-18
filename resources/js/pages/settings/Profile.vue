@@ -36,7 +36,7 @@ function submit() {
 
                 <div class="flex items-center gap-4">
                     <AppButton type="submit" :processing="form.processing">Save</AppButton>
-                    <p v-if="form.recentlySuccessful" class="text-sm text-zinc-500 dark:text-zinc-400">Saved.</p>
+                    <p v-if="form.recentlySuccessful" class="text-sm text-green-600 dark:text-green-400">Saved.</p>
                 </div>
             </form>
         </AppCard>

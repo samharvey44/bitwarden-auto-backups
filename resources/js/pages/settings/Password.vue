@@ -48,7 +48,7 @@ function submit() {
 
                 <div class="flex items-center gap-4">
                     <AppButton type="submit" :processing="form.processing">Update password</AppButton>
-                    <p v-if="form.recentlySuccessful" class="text-sm text-zinc-500 dark:text-zinc-400">Password updated.</p>
+                    <p v-if="form.recentlySuccessful" class="text-sm text-green-600 dark:text-green-400">Password updated.</p>
                 </div>
             </form>
         </AppCard>

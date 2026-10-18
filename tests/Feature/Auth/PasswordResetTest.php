@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Notifications\QueuedResetPassword;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Notifications\SendQueuedNotifications;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -117,5 +118,31 @@ class PasswordResetTest extends TestCase
         });
 
         $this->assertTrue(Hash::check('a-new-password', $user->refresh()->password));
+    }
+
+    public function test_resetting_the_password_logs_out_sessions_from_before_the_reset(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $hashBeforeTheReset = Auth::guard('web')->hashPasswordForCookie($user->getAuthPassword());
+        $this->post('/forgot-password', ['email' => $user->email]);
+
+        Notification::assertSentTo($user, QueuedResetPassword::class, function (QueuedResetPassword $notification) use ($user): bool {
+            $this->post('/reset-password', [
+                'token' => $notification->token,
+                'email' => $user->email,
+                'password' => 'a-new-password',
+                'password_confirmation' => 'a-new-password',
+            ]);
+
+            return true;
+        });
+
+        $this->actingAs($user->refresh())
+            ->withSession(['password_hash_web' => $hashBeforeTheReset])
+            ->get('/vaults')
+            ->assertRedirect('/login');
+
+        $this->assertGuest();
     }
 }

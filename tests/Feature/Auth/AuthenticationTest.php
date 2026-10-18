@@ -44,6 +44,16 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_rejects_an_email_address_that_is_not_a_string(): void
+    {
+        $this->from('/login')
+            ->post('/login', ['email' => ['sam@example.com'], 'password' => 'password'])
+            ->assertRedirect('/login')
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
     public function test_logging_in_is_rate_limited_per_email_address(): void
     {
         $user = User::factory()->create();

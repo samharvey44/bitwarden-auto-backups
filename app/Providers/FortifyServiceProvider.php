@@ -47,7 +47,10 @@ class FortifyServiceProvider extends ServiceProvider
         $this->registerViews();
 
         RateLimiter::for('login', function (Request $request) {
-            $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
+            // Validation hasn't run yet, so the email may not be a string. It is
+            // left out of the key when it isn't, and validation then rejects it.
+            $email = $request->input(Fortify::username());
+            $throttleKey = Str::transliterate(Str::lower(is_string($email) ? $email : '').'|'.$request->ip());
 
             return Limit::perMinute(5)->by($throttleKey);
         });

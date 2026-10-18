@@ -171,6 +171,71 @@ read -rs VAULT_CLIENT_SECRET && export VAULT_CLIENT_SECRET   # Repeat for each s
 php artisan vaults:create --no-interaction --user=you@example.com --name=Personal --server-url=https://vault.bitwarden.com --format=encrypted_json
 ```
 
+## Production
+
+Production runs in Docker with [compose.production.yaml](compose.production.yaml), which is separate from the Sail development setup. It runs the queue worker, the scheduler and MySQL, and nothing is reachable from outside the machine. The web interface is optional and only runs with the `web` profile. Images are built on the machine itself. Docker with Docker Compose is the only requirement.
+
+The commands below use this alias:
+
+```bash
+alias backups='docker compose -f compose.production.yaml'
+```
+
+### First-time setup
+
+1. Clone the repository and create the environment file:
+
+    ```bash
+    git clone <repository-url> bitwarden-auto-backups
+    cd bitwarden-auto-backups
+    cp .env.production.example .env
+    ```
+
+2. Build the image, then generate the application key and paste it into `APP_KEY` in `.env`. Fill in the other required settings too, such as the database password.
+
+    ```bash
+    backups build
+    backups run --rm --no-deps worker php artisan key:generate --show
+    ```
+
+3. Start it. The database tables are created on the first start, and any new migrations run each time it starts:
+
+    ```bash
+    backups up -d
+    ```
+
+4. Create a user and add a vault, answering the prompts. To run without prompts, set the secrets listed in [Running without prompts](#running-without-prompts) in your shell and pass them through by name, such as `backups exec -e VAULT_MASTER_PASSWORD worker php artisan vaults:create --no-interaction ...`, so they never appear in the command itself:
+
+    ```bash
+    backups exec -it worker php artisan users:create
+    backups exec -it worker php artisan vaults:create
+    backups exec -it worker php artisan vaults:verify 1
+    ```
+
+Follow what it's doing with `backups logs -f worker scheduler`.
+
+### Web interface
+
+```bash
+backups --profile web up -d
+```
+
+nginx listens on `127.0.0.1:8080` by default, so only this machine can reach it, for example a Cloudflare Tunnel or reverse proxy running alongside it. Change `WEB_BIND` and `WEB_PORT` in `.env` to listen elsewhere. When serving it over HTTPS, set `APP_URL` to the public address and `SESSION_SECURE_COOKIE=true`.
+
+### Storing backups offsite
+
+Backups are kept in the `storage` volume by default, so they are lost along with the machine. To store them in S3-compatible storage such as Cloudflare R2 or Backblaze B2 instead, set `BACKUP_DISK=s3` and fill in the `AWS_*` settings in `.env`, then restart with `backups up -d`.
+
+### Updating
+
+```bash
+git pull
+backups build
+backups up -d
+```
+
+Restart with `backups up -d` after any change to `.env`, too. The worker is given up to 7 minutes to finish a running backup before it stops.
+
 ## Services
 
 | Service | URL / Host | Notes |

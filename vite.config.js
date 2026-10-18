@@ -17,7 +17,9 @@ export default defineConfig({
             ],
         }),
         tailwindcss(),
-        wayfinder({ actions: false }),
+        // The frontend is plain JavaScript, so Wayfinder doesn't need the database
+        // to type route parameters, which also lets Docker build without one.
+        wayfinder({ actions: false, skipDatabase: true }),
         vue({
             template: {
                 transformAssetUrls: {

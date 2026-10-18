@@ -75,11 +75,6 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
-      # Wayfinder reads the database schema when it generates the frontend's
-      # routes during the build, so the tables need to exist first.
-      - name: Run migrations
-        run: php artisan migrate --force
-
       - name: Build the frontend
         run: npm run build
 

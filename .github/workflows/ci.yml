@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests and build
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: testing
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: testing
+      DB_USERNAME: root
+      DB_PASSWORD: password
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: bcmath, intl, pdo_mysql, zip
+          coverage: none
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Get the Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Prepare the environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Wayfinder reads the database schema when it generates the frontend's
+      # routes during the build, so the tables need to exist first.
+      - name: Run migrations
+        run: php artisan migrate --force
+
+      - name: Build the frontend
+        run: npm run build
+
+      - name: Run the tests
+        run: php artisan test
+
+  code-style:
+    name: Code style
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Check the PHP code style
+        run: vendor/bin/pint --test

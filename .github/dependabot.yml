@@ -1,0 +1,31 @@
+version: 2
+
+updates:
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      composer-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # The Bitwarden CLI gets its own pull request, as Bitwarden's servers
+      # eventually stop accepting old versions and backups would start failing.
+      # A dependency joins the first group it matches.
+      bitwarden-cli:
+        patterns: ['@bitwarden/cli']
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ['*']

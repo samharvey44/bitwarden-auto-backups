@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->authenticateSessions();
+
+        $middleware->trustProxies(
+            at: '127.0.0.1',
+            headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -173,7 +173,7 @@ php artisan vaults:create --no-interaction --user=you@example.com --name=Persona
 
 ## Production
 
-Production runs in Docker with [compose.production.yaml](compose.production.yaml), which is separate from the Sail development setup. It runs the queue worker, the scheduler and MySQL, and nothing is reachable from outside the machine. The web interface is optional and only runs with the `web` profile. Images are built on the machine itself. Docker with Docker Compose is the only requirement.
+Production runs in Docker with [compose.production.yaml](compose.production.yaml), which is separate from the Sail development setup. It runs the queue worker, the scheduler and MySQL, and nothing is reachable from outside the machine. The web interface is optional, only runs with the `web` profile, and is only reachable over [Tailscale](https://tailscale.com). Images are built on the machine itself. Docker with Docker Compose is the only requirement.
 
 The commands below use this alias:
 
@@ -220,7 +220,13 @@ Follow what it's doing with `backups logs -f worker scheduler`.
 backups --profile web up -d
 ```
 
-nginx listens on `127.0.0.1:8080` by default, so only this machine can reach it, for example a Cloudflare Tunnel or reverse proxy running alongside it. Change `WEB_BIND` and `WEB_PORT` in `.env` to listen elsewhere. When serving it over HTTPS, set `APP_URL` to the public address and `SESSION_SECURE_COOKIE=true`.
+The web interface joins your tailnet as its own machine, so only your devices on Tailscale can reach it, at `https://<TS_HOSTNAME>.<your tailnet>.ts.net`. Nothing is published on the server itself. Before starting it:
+
+1. In the Tailscale admin console, turn on MagicDNS and HTTPS certificates (DNS page).
+2. Create an auth key (Settings › Keys). Don't make it ephemeral, or the machine is removed whenever it goes offline. Giving it a tag stops the machine's login expiring.
+3. In `.env`, set `TS_AUTHKEY` to the key, `TS_HOSTNAME` to the machine name you want (each project on the server needs its own), and `APP_URL` to the address it gives.
+
+The machine's identity is kept in the `tailscale` volume, so the auth key is only needed the first time. The first visit can take a few seconds while Tailscale issues the HTTPS certificate.
 
 ### Storing backups offsite
 
@@ -230,11 +236,12 @@ Backups are kept in the `storage` volume by default, so they are lost along with
 
 ```bash
 git pull
-backups build
+backups pull --ignore-buildable
+backups build --pull
 backups up -d
 ```
 
-Restart with `backups up -d` after any change to `.env`, too. The worker is given up to 7 minutes to finish a running backup before it stops.
+This also picks up the latest Tailscale release and any security updates to the PHP, Node and nginx images the app is built on, so run it now and then even when the code hasn't changed. Restart with `backups up -d` after any change to `.env`, too. The worker is given up to 7 minutes to finish a running backup before it stops.
 
 ## Services
 

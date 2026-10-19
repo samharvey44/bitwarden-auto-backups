@@ -1,9 +1,7 @@
 # Production setup. The migrations run on every start, then the queue worker
 # and scheduler run alongside MySQL. The web interface (PHP-FPM behind nginx,
-# served on your tailnet by Tailscale) only runs with the "web" profile:
-#
-#   docker compose -f compose.production.yaml up -d
-#   docker compose -f compose.production.yaml --profile web up -d
+# served on your tailnet by Tailscale) only runs with the "web" profile, which
+# COMPOSE_PROFILES=web in .env turns on.
 name: bitwarden-auto-backups
 
 x-app: &app
@@ -12,6 +10,8 @@ x-app: &app
     dockerfile: docker/production/Dockerfile
     target: app
   image: bitwarden-auto-backups-app
+  # Built on this machine, so never look for it on Docker Hub.
+  pull_policy: never
   restart: unless-stopped
   env_file: .env
   volumes:
@@ -68,6 +68,7 @@ services:
       dockerfile: docker/production/Dockerfile
       target: web
     image: bitwarden-auto-backups-web
+    pull_policy: never
     profiles: [web]
     restart: unless-stopped
     network_mode: service:tailscale

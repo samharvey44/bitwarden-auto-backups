@@ -191,7 +191,7 @@ alias backups='docker compose -f compose.production.yaml'
     cp .env.production.example .env
     ```
 
-2. Build the image, then generate the application key and paste it into `APP_KEY` in `.env`. Fill in the other required settings too, such as the database password.
+2. Build the image, then generate the application key and paste it into `APP_KEY` in `.env`. Fill in the other required settings too, such as the database password. To use the web interface, set it up as described in [Web interface](#web-interface) first.
 
     ```bash
     backups build
@@ -216,17 +216,19 @@ Follow what it's doing with `backups logs -f worker scheduler`.
 
 ### Web interface
 
-```bash
-backups --profile web up -d
-```
-
-The web interface joins your tailnet as its own machine, so only your devices on Tailscale can reach it, at `https://<TS_HOSTNAME>.<your tailnet>.ts.net`. Nothing is published on the server itself. Before starting it:
+The web interface joins your tailnet as its own machine, so only your devices on Tailscale can reach it, at `https://<TS_HOSTNAME>.<your tailnet>.ts.net`. Nothing is published on the server itself. To set it up:
 
 1. In the Tailscale admin console, turn on MagicDNS and HTTPS certificates (DNS page).
 2. Create an auth key (Settings › Keys). Don't make it ephemeral, or the machine is removed whenever it goes offline. Giving it a tag stops the machine's login expiring.
-3. In `.env`, set `TS_AUTHKEY` to the key, `TS_HOSTNAME` to the machine name you want (each project on the server needs its own), and `APP_URL` to the address it gives.
+3. In `.env`, uncomment `COMPOSE_PROFILES=web`, and set `TS_AUTHKEY` to the key, `TS_HOSTNAME` to the machine name you want (each project on the server needs its own), and `APP_URL` to the address it gives.
+4. Build and start it:
 
-The machine's identity is kept in the `tailscale` volume, so the auth key is only needed the first time. The first visit can take a few seconds while Tailscale issues the HTTPS certificate.
+    ```bash
+    backups build
+    backups up -d
+    ```
+
+`COMPOSE_PROFILES=web` makes every command include the web interface, so building and updating always keep it in step with the rest of the app. The machine's identity is kept in the `tailscale` volume, so the auth key is only needed the first time. The first visit can take a few seconds while Tailscale issues the HTTPS certificate.
 
 ### Storing backups offsite
 

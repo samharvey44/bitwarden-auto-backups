@@ -1,6 +1,6 @@
 # Bitwarden Auto Backups
 
-A tool for configuring automated backups of users' [Bitwarden](https://bitwarden.com) vaults.
+Back up your [Bitwarden](https://bitwarden.com) vaults on a schedule, from the command line or an optional web interface. It runs in Docker, and the web interface is served privately to your devices over [Tailscale](https://tailscale.com).
 
 > This project is not affiliated with or endorsed by Bitwarden.
 

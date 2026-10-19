@@ -118,6 +118,17 @@ sail logs -f queue       # Queued backup jobs
 sail logs -f scheduler   # Backups being queued as they become due
 ```
 
+### Development services
+
+| Service | URL / Host | Notes |
+| --- | --- | --- |
+| Application | http://localhost | |
+| Vite dev server | http://localhost:5173 | Only while `sail npm run dev` is running |
+| Mailpit | http://localhost:8025 | Catches all outgoing mail |
+| MySQL | `localhost:3306` | Database `laravel`, user `sail`, password `password` |
+
+If a port is already in use on your machine, override it in `.env` with `APP_PORT`, `VITE_PORT`, `FORWARD_DB_PORT`, `FORWARD_MAILPIT_PORT` or `FORWARD_MAILPIT_DASHBOARD_PORT`, then run `sail up -d` again.
+
 ## Command-line setup
 
 Everything needed to set up and run backups is available as Artisan commands, so the application can be used without the web interface. Each command prompts for anything it needs, and `--help` lists its options.
@@ -128,7 +139,7 @@ sail artisan vaults:create         # Add a Bitwarden vault to back up
 sail artisan vaults:verify <id>    # Check a vault's credentials work, without backing it up
 sail artisan vaults:list           # List vaults and their schedules
 sail artisan vaults:edit <id>      # Change a vault's settings
-sail artisan vaults:delete <id>    # Delete a vault, its backup history and its backup files
+sail artisan vaults:delete <id>    # Delete a vault, its backup history and its backup files (--keep-files keeps the files)
 sail artisan backups:run <id>      # Queue a backup now, outside the schedule
 sail artisan backups:list <id>     # List a vault's recent backups, their files and any errors
 ```
@@ -138,7 +149,7 @@ A vault needs its server's URL (`https://vault.bitwarden.com` for the US cloud, 
 - **Encrypted JSON**, protected by an export password and importable into any Bitwarden account.
 - **JSON**, unencrypted and importable into other password managers. It is saved inside an AES-256 encrypted ZIP when given a password, or as a plain JSON file when not.
 
-New vaults are backed up the next time the scheduler runs, then on their schedule.
+Each vault is backed up daily, weekly or monthly, and keeps its most recent successful backups, 30 by default. After each successful backup, older ones beyond that are deleted, along with their files, so keep more if you need a longer history. Failed backups don't count towards the limit. Both are set when adding a vault, with `--frequency` and `--retain` on the command line, and can be changed later. New vaults are backed up the next time the scheduler runs, then on their schedule.
 
 > [!IMPORTANT]
 > Backups are made with the Bitwarden CLI's `export` command, so they contain the same as an export from Bitwarden itself. They **do not include file attachments**, or items owned by **organizations** you are a member of, only your individual vault.
@@ -232,7 +243,7 @@ The web interface joins your tailnet as its own machine, so only your devices on
 
 ### Storing backups offsite
 
-Backups are kept in the `storage` volume by default, so they are lost along with the machine. To store them in S3-compatible storage such as Cloudflare R2 or Backblaze B2 instead, set `BACKUP_DISK=s3` and fill in the `AWS_*` settings in `.env`, then restart with `backups up -d`.
+Backups are kept in the `storage` volume by default, so they are lost along with the machine. To store them in S3-compatible storage such as Cloudflare R2 or Backblaze B2 instead, set `BACKUP_DISK=s3` and fill in the `AWS_*` settings in `.env`, then restart with `backups up -d`. For anything other than Amazon S3, `AWS_ENDPOINT` is your provider's S3 API address, such as `https://<account id>.r2.cloudflarestorage.com` for R2.
 
 ### Updating
 
@@ -244,14 +255,3 @@ backups up -d
 ```
 
 This also picks up the latest Tailscale release and any security updates to the PHP, Node and nginx images the app is built on, so run it now and then even when the code hasn't changed. Restart with `backups up -d` after any change to `.env`, too. The worker is given up to 7 minutes to finish a running backup before it stops.
-
-## Services
-
-| Service | URL / Host | Notes |
-| --- | --- | --- |
-| Application | http://localhost | |
-| Vite dev server | http://localhost:5173 | Only while `sail npm run dev` is running |
-| Mailpit | http://localhost:8025 | Catches all outgoing mail |
-| MySQL | `localhost:3306` | Database `laravel`, user `sail`, password `password` |
-
-If a port is already in use on your machine, override it in `.env` with `APP_PORT`, `VITE_PORT`, `FORWARD_DB_PORT`, `FORWARD_MAILPIT_PORT` or `FORWARD_MAILPIT_DASHBOARD_PORT`, then run `sail up -d` again.

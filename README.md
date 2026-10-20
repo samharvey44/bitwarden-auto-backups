@@ -149,7 +149,7 @@ A vault needs its server's URL (`https://vault.bitwarden.com` for the US cloud, 
 - **Encrypted JSON**, protected by an export password and importable into any Bitwarden account.
 - **JSON**, unencrypted and importable into other password managers. It is saved inside an AES-256 encrypted ZIP when given a password, or as a plain JSON file when not.
 
-Each vault is backed up daily, weekly or monthly, and keeps its most recent successful backups, 30 by default. After each successful backup, older ones beyond that are deleted, along with their files, so keep more if you need a longer history. Failed backups don't count towards the limit. Both are set when adding a vault, with `--frequency` and `--retain` on the command line, and can be changed later. New vaults are backed up the next time the scheduler runs, then on their schedule.
+Each vault is backed up hourly, daily, weekly or monthly, and keeps its most recent successful backups, 30 by default. After each successful backup, older ones beyond that are deleted, along with their files, so keep more if you need a longer history. Failed backups don't count towards the limit. Both are set when adding a vault, with `--frequency` and `--retain` on the command line, and can be changed later. New vaults are backed up the next time the scheduler runs, then on their schedule.
 
 > [!IMPORTANT]
 > Backups are made with the Bitwarden CLI's `export` command, so they contain the same as an export from Bitwarden itself. They **do not include file attachments**, or items owned by **organizations** you are a member of, only your individual vault.

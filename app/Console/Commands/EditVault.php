@@ -21,7 +21,7 @@ use function Laravel\Prompts\text;
     {--name= : A name to identify the vault by}
     {--server-url= : The server URL, such as "https://vault.bitwarden.com" for the US cloud or "https://vault.bitwarden.eu" for the EU cloud}
     {--format=* : A format to back up in, "encrypted_json" or "json". Repeat for both. Replaces the current formats}
-    {--frequency= : How often to back up, "daily", "weekly" or "monthly"}
+    {--frequency= : How often to back up, "hourly", "daily", "weekly" or "monthly"}
     {--retain= : How many successful backups to keep}
     {--without-json-export-password : Save JSON backups as plain, unencrypted JSON instead of a password-protected ZIP}')]
 #[Description("Change a vault's settings")]

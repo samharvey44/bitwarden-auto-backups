@@ -112,6 +112,7 @@ class VaultControllerTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('vaults/Create')
                 ->where('frequencies', [
+                    ['value' => 'hourly', 'label' => 'Hourly'],
                     ['value' => 'daily', 'label' => 'Daily'],
                     ['value' => 'weekly', 'label' => 'Weekly'],
                     ['value' => 'monthly', 'label' => 'Monthly'],
@@ -279,7 +280,7 @@ class VaultControllerTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('vaults/Edit')
                 ->where('vault.id', $vault->id)
-                ->has('frequencies', 3)
+                ->has('frequencies', 4)
                 ->has('cloudServerUrls'));
     }
 
@@ -457,7 +458,7 @@ class VaultControllerTest extends TestCase
                 'json_export_password',
                 'The ZIP password field confirmation does not match.',
             ],
-            'unknown frequency' => [['frequency' => 'hourly'], 'frequency', 'The selected frequency is invalid.'],
+            'unknown frequency' => [['frequency' => 'fortnightly'], 'frequency', 'The selected frequency is invalid.'],
             'keeping no backups' => [['retain_backups_count' => 0], 'retain_backups_count', 'The number of backups to keep field must be at least 1.'],
         ];
     }

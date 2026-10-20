@@ -191,7 +191,7 @@ class CreateVaultTest extends TestCase
             '--name' => 'Personal',
             '--server-url' => 'vault.example.com',
             '--format' => ['zip'],
-            '--frequency' => 'hourly',
+            '--frequency' => 'fortnightly',
             '--retain' => '0',
             '--no-interaction' => true,
         ])

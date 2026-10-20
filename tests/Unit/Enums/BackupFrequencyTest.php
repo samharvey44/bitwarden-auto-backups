@@ -25,6 +25,7 @@ class BackupFrequencyTest extends TestCase
     public static function nextRunTimesDataProvider(): array
     {
         return [
+            'hourly runs an hour later' => [BackupFrequency::Hourly, '2026-01-31 11:30:00'],
             'daily runs the next day' => [BackupFrequency::Daily, '2026-02-01 10:30:00'],
             'weekly runs seven days later' => [BackupFrequency::Weekly, '2026-02-07 10:30:00'],
             'monthly clamps to the end of a shorter month' => [BackupFrequency::Monthly, '2026-02-28 10:30:00'],

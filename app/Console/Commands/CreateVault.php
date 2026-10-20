@@ -23,7 +23,7 @@ use function Laravel\Prompts\text;
     {--name= : A name to identify the vault by}
     {--server-url= : The server URL, such as "https://vault.bitwarden.com" for the US cloud or "https://vault.bitwarden.eu" for the EU cloud}
     {--format=* : A format to back up in, "encrypted_json" or "json". Repeat for both [default: "encrypted_json"]}
-    {--frequency= : How often to back up, "daily", "weekly" or "monthly" [default: "daily"]}
+    {--frequency= : How often to back up, "hourly", "daily", "weekly" or "monthly" [default: "daily"]}
     {--retain= : How many successful backups to keep [default: 30]}')]
 #[Description('Add a Bitwarden vault to back up')]
 #[Help(<<<'HELP'

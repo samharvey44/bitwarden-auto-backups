@@ -27,6 +27,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Heartbeat URL
+    |--------------------------------------------------------------------------
+    |
+    | A URL requested after every successful backup, such as the ping URL of a
+    | heartbeat monitoring service, so it can alert you when backups stop.
+    | Leave it empty to send nothing.
+    |
+    */
+
+    'heartbeat_url' => env('BACKUP_HEARTBEAT_URL'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Working Disk
     |--------------------------------------------------------------------------
     |

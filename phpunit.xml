@@ -21,6 +21,7 @@
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BACKUP_DISK" value="backups"/>
+        <env name="BACKUP_HEARTBEAT_URL" value=""/>
         <env name="REGISTRATION_ENABLED" value="false"/>
         <env name="MAX_VAULTS_PER_USER" value="10"/>
         <env name="BCRYPT_ROUNDS" value="4"/>

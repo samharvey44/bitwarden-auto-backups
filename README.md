@@ -156,6 +156,8 @@ Each vault is backed up daily, weekly or monthly, and keeps its most recent succ
 
 When a backup fails, the vault's owner is notified. To avoid a notification for every failed run, they are only notified again once one of the vault's backups has succeeded. Notifications are currently sent by email, using the `MAIL_*` settings in `.env`, so set these up to receive them, including when using only the command line.
 
+Failure notifications can't tell you when backups stop running altogether, for example because the server is off. For that, set `BACKUP_HEARTBEAT_URL` to the ping URL of a heartbeat monitoring service, one that alerts you when it stops receiving requests. It's requested with a `GET` after every successful backup, so set the service's expected interval to match how often your vaults are backed up. With several vaults, a successful backup of any of them counts.
+
 Users are only created with `users:create` by default. To let people create their own accounts from a register page in the web interface, set `REGISTRATION_ENABLED=true`. Registrations are limited to five an hour from each IP address, and each user can add up to 10 vaults, which `MAX_VAULTS_PER_USER` changes (`0` for no limit).
 
 > [!WARNING]

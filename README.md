@@ -247,6 +247,10 @@ The web interface joins your tailnet as its own machine, so only your devices on
 
 Backups are kept in the `storage` volume by default, so they are lost along with the machine. To store them in S3-compatible storage such as Cloudflare R2 or Backblaze B2 instead, set `BACKUP_DISK=s3` and fill in the `AWS_*` settings in `.env`, then restart with `backups up -d`. For anything other than Amazon S3, `AWS_ENDPOINT` is your provider's S3 API address, such as `https://<account id>.r2.cloudflarestorage.com` for R2.
 
+### Database access
+
+MySQL is published on `127.0.0.1` only, at the port set by `FORWARD_DB_PORT` (3306 by default), so it can't be reached from the network. To browse it from another computer, use your database client's SSH tunnel to the server, then connect to host `127.0.0.1` on that port with the `DB_DATABASE`, `DB_USERNAME` and `DB_PASSWORD` from `.env`.
+
 ### Updating
 
 ```bash

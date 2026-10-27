@@ -98,3 +98,22 @@ jobs:
 
       - name: Check the PHP code style
         run: vendor/bin/pint --test
+
+  production-image:
+    name: Production image
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Builds both images the server builds, so a change that breaks them,
+      # such as a dependency the build needs moving to require-dev, fails here.
+      - name: Build the app image
+        run: docker build --file docker/production/Dockerfile --target app --tag bitwarden-auto-backups-app .
+
+      - name: Build the web image
+        run: docker build --file docker/production/Dockerfile --target web .
+
+      # Backups run the Bitwarden CLI from the app image, so check it starts there.
+      - name: Check the Bitwarden CLI runs
+        run: docker run --rm --entrypoint node_modules/.bin/bw --env BITWARDENCLI_APPDATA_DIR=/tmp/bw bitwarden-auto-backups-app --version

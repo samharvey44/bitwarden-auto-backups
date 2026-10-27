@@ -225,7 +225,7 @@ alias backups='docker compose -f compose.production.yaml'
     backups exec -it worker php artisan vaults:verify 1
     ```
 
-Follow what it's doing with `backups logs -f worker scheduler`.
+Follow what it's doing with `backups logs -f worker scheduler`. Logs are rotated by Docker, so they can't fill the disk.
 
 ### Web interface
 

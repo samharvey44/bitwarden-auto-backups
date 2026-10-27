@@ -16,6 +16,10 @@ x-app: &app
   env_file: .env
   volumes:
     - storage:/var/www/html/storage
+  # Logs go to the container output. The local driver rotates them, so they
+  # can't fill the disk.
+  logging:
+    driver: local
   depends_on:
     migrate:
       condition: service_completed_successfully
@@ -61,6 +65,8 @@ services:
     volumes:
       - tailscale:/var/lib/tailscale
       - ./docker/production/tailscale/serve.json:/config/serve.json:ro
+    logging:
+      driver: local
 
   nginx:
     build:
@@ -72,6 +78,8 @@ services:
     profiles: [web]
     restart: unless-stopped
     network_mode: service:tailscale
+    logging:
+      driver: local
     depends_on:
       - php-fpm
       - tailscale
@@ -88,6 +96,8 @@ services:
       MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
     volumes:
       - mysql-data:/var/lib/mysql
+    logging:
+      driver: local
     healthcheck:
       test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-u', '${DB_USERNAME}', '-p${DB_PASSWORD}']
       interval: 5s
